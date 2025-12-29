@@ -9,6 +9,7 @@ import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepositor
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.usecase.AddCreditCardItemUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.CreateInstallmentPurchaseUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.GetOrCreateBillUseCase
 import com.example.gerenciadorfinanceiro.util.toCents
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -32,6 +33,7 @@ class AddEditCreditCardItemViewModel @Inject constructor(
     private val billRepository: CreditCardBillRepository,
     private val addItemUseCase: AddCreditCardItemUseCase,
     private val createInstallmentPurchaseUseCase: CreateInstallmentPurchaseUseCase,
+    private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -97,10 +99,25 @@ class AddEditCreditCardItemViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
 
             try {
+                // Determine starting bill based on current bill status
+                val startDate = if (bill.status == com.example.gerenciadorfinanceiro.domain.model.BillStatus.OPEN) {
+                    // Bill is open, start from current month
+                    java.time.LocalDate.of(bill.year, bill.month, 1)
+                } else {
+                    // Bill is closed, start from next month
+                    java.time.LocalDate.of(bill.year, bill.month, 1).plusMonths(1)
+                }
+
                 if (currentState.installments == 1) {
-                    // Single item
+                    // Single item - get or create the appropriate bill
+                    val targetBill = getOrCreateBillUseCase(
+                        bill.creditCardId,
+                        startDate.monthValue,
+                        startDate.year
+                    )
+
                     val item = CreditCardItem(
-                        creditCardBillId = billId,
+                        creditCardBillId = targetBill.id,
                         category = currentState.category,
                         description = currentState.description.trim(),
                         amount = amountInCents,
@@ -118,7 +135,9 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                         totalAmount = amountInCents,
                         category = currentState.category,
                         purchaseDate = System.currentTimeMillis(),
-                        numberOfInstallments = currentState.installments
+                        numberOfInstallments = currentState.installments,
+                        startMonth = startDate.monthValue,
+                        startYear = startDate.year
                     )
                 }
 
