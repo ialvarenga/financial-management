@@ -215,7 +215,9 @@ fun CreditCardDetailScreen(
                             }
                         }
                     } else {
-                        items(uiState.currentBillItems, key = { it.id }) { item ->
+                        items(
+                            items = uiState.currentBillItems
+                        ) { item ->
                             CreditCardItemCard(
                                 item = item,
                                 onDelete = { itemToDelete = item }
@@ -252,7 +254,7 @@ fun CreditCardDetailScreen(
                         }
                     }
                 } else {
-                    items(uiState.billHistory, key = { it.id }) { bill ->
+                    items(uiState.billHistory) { bill ->
                         BillCard(bill = bill)
                     }
                 }
