@@ -4,21 +4,29 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.gerenciadorfinanceiro.data.local.database.dao.AccountDao
+import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardBillDao
+import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardDao
 import com.example.gerenciadorfinanceiro.data.local.database.dao.TransactionDao
 import com.example.gerenciadorfinanceiro.data.local.entity.Account
+import com.example.gerenciadorfinanceiro.data.local.entity.CreditCard
+import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardBill
 import com.example.gerenciadorfinanceiro.data.local.entity.Transaction
 
 @Database(
     entities = [
         Account::class,
-        Transaction::class
+        Transaction::class,
+        CreditCard::class,
+        CreditCardBill::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
     abstract fun transactionDao(): TransactionDao
+    abstract fun creditCardDao(): CreditCardDao
+    abstract fun creditCardBillDao(): CreditCardBillDao
 }
 

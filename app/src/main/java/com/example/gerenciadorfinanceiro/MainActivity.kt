@@ -68,6 +68,16 @@ fun MainScreen() {
                         }
                     }
                 )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.CreditCard, contentDescription = "Cartões") },
+                    label = { Text("Cartões") },
+                    selected = currentRoute == Screen.CreditCards.route,
+                    onClick = {
+                        navController.navigate(Screen.CreditCards.route) {
+                            popUpTo(Screen.Dashboard.route)
+                        }
+                    }
+                )
             }
         }
     ) { paddingValues ->
