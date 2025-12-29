@@ -17,6 +17,7 @@ import com.example.gerenciadorfinanceiro.ui.screens.creditcards.CreditCardDetail
 import com.example.gerenciadorfinanceiro.ui.screens.creditcards.AddEditCreditCardItemScreen
 import com.example.gerenciadorfinanceiro.ui.screens.recurrences.RecurrencesScreen
 import com.example.gerenciadorfinanceiro.ui.screens.recurrences.AddEditRecurrenceScreen
+import com.example.gerenciadorfinanceiro.ui.screens.transactions.AddTransferScreen
 
 sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
@@ -41,6 +42,9 @@ sealed class Screen(val route: String) {
     object Recurrences : Screen("recurrences")
     object AddEditRecurrence : Screen("recurrences/add_edit?recurrenceId={recurrenceId}") {
         fun createRoute(recurrenceId: Long? = null) = "recurrences/add_edit?recurrenceId=${recurrenceId ?: -1}"
+    }
+    object AddTransfer : Screen("transactions/add_transfer?transferId={transferId}") {
+        fun createRoute(transferId: Long? = null) = "transactions/add_transfer?transferId=${transferId ?: -1}"
     }
 
     // Will add more screens later
@@ -80,6 +84,9 @@ fun AppNavigation(navController: NavHostController) {
             TransactionsScreen(
                 onNavigateToAddEdit = { transactionId ->
                     navController.navigate(Screen.AddEditTransaction.createRoute(transactionId))
+                },
+                onNavigateToAddTransfer = { transferId ->
+                    navController.navigate(Screen.AddTransfer.createRoute(transferId))
                 }
             )
         }
@@ -170,6 +177,18 @@ fun AppNavigation(navController: NavHostController) {
             })
         ) {
             AddEditRecurrenceScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.AddTransfer.route,
+            arguments = listOf(navArgument("transferId") {
+                type = NavType.StringType
+                defaultValue = "-1"
+            })
+        ) {
+            AddTransferScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
