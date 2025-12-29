@@ -49,9 +49,8 @@ class AddEditCreditCardItemViewModel @Inject constructor(
     private fun loadBill() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            billRepository.getByIdFlow(billId).collect { bill ->
-                _uiState.update { it.copy(bill = bill, isLoading = false) }
-            }
+            val bill = billRepository.getById(billId)
+            _uiState.update { it.copy(bill = bill, isLoading = false) }
         }
     }
 

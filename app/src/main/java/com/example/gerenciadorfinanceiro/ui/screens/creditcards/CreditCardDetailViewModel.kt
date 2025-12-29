@@ -11,6 +11,7 @@ import com.example.gerenciadorfinanceiro.data.repository.CreditCardItemRepositor
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardRepository
 import com.example.gerenciadorfinanceiro.domain.usecase.GetOrCreateBillUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -24,6 +25,7 @@ data class CreditCardDetailUiState(
     val isLoading: Boolean = true
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class CreditCardDetailViewModel @Inject constructor(
     private val creditCardRepository: CreditCardRepository,
@@ -35,13 +37,10 @@ class CreditCardDetailViewModel @Inject constructor(
 
     private val cardId: Long = savedStateHandle.get<String>("cardId")?.toLongOrNull() ?: -1
 
-    private val _currentBillItems = MutableStateFlow<List<CreditCardItem>>(emptyList())
-
     val uiState: StateFlow<CreditCardDetailUiState> = combine(
         creditCardRepository.getByIdFlow(cardId),
-        billRepository.getBillsByCard(cardId),
-        _currentBillItems
-    ) { card, bills, items ->
+        billRepository.getBillsByCard(cardId)
+    ) { card, bills ->
         val now = LocalDate.now()
         val currentBill = bills.firstOrNull {
             it.month == now.monthValue && it.year == now.year
@@ -49,10 +48,18 @@ class CreditCardDetailViewModel @Inject constructor(
         CreditCardDetailUiState(
             card = card,
             currentBill = currentBill,
-            currentBillItems = items,
+            currentBillItems = emptyList(),
             billHistory = bills,
             isLoading = false
         )
+    }.flatMapLatest { state ->
+        if (state.currentBill != null) {
+            itemRepository.getItemsByBill(state.currentBill.id).map { items ->
+                state.copy(currentBillItems = items)
+            }
+        } else {
+            flowOf(state)
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -63,17 +70,6 @@ class CreditCardDetailViewModel @Inject constructor(
         // Ensure current month bill exists
         viewModelScope.launch {
             ensureCurrentBillExists()
-        }
-
-        // Collect items for current bill
-        viewModelScope.launch {
-            uiState.collect { state ->
-                state.currentBill?.let { bill ->
-                    itemRepository.getItemsByBill(bill.id).collect { items ->
-                        _currentBillItems.value = items
-                    }
-                }
-            }
         }
     }
 
