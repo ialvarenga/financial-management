@@ -26,6 +26,7 @@ fun CreditCardDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: () -> Unit,
     onNavigateToAddItem: (Long) -> Unit,
+    onNavigateToImportCsv: () -> Unit,
     viewModel: CreditCardDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -42,6 +43,9 @@ fun CreditCardDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToImportCsv) {
+                        Icon(Icons.Default.FileUpload, contentDescription = "Importar CSV")
+                    }
                     IconButton(onClick = onNavigateToEdit) {
                         Icon(Icons.Default.Edit, contentDescription = "Editar")
                     }
@@ -114,21 +118,72 @@ fun CreditCardDetailScreen(
 
                                 Divider()
 
+                                // Limit usage section
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "Limite Disponível",
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            Text(
+                                                text = uiState.availableLimit.toReais(),
+                                                style = MaterialTheme.typography.titleLarge,
+                                                color = if (uiState.availableLimit > 0)
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                text = "Limite Total",
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                            Text(
+                                                text = card.creditLimit.toReais(),
+                                                style = MaterialTheme.typography.titleMedium
+                                            )
+                                        }
+                                    }
+
+                                    // Progress bar showing used limit
+                                    val usagePercentage = if (card.creditLimit > 0) {
+                                        (uiState.usedLimit.toFloat() / card.creditLimit.toFloat()).coerceIn(0f, 1f)
+                                    } else 0f
+
+                                    LinearProgressIndicator(
+                                        progress = { usagePercentage },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp),
+                                        color = when {
+                                            usagePercentage > 0.9f -> MaterialTheme.colorScheme.error
+                                            usagePercentage > 0.7f -> MaterialTheme.colorScheme.tertiary
+                                            else -> MaterialTheme.colorScheme.primary
+                                        },
+                                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                    )
+
+                                    Text(
+                                        text = "Utilizado: ${uiState.usedLimit.toReais()} (${(usagePercentage * 100).toInt()}%)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+
+                                Divider()
+
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column {
-                                        Text(
-                                            text = "Limite",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                        Text(
-                                            text = card.creditLimit.toReais(),
-                                            style = MaterialTheme.typography.titleLarge
-                                        )
-                                    }
-                                    Column(horizontalAlignment = Alignment.End) {
                                         Text(
                                             text = "Fechamento",
                                             style = MaterialTheme.typography.bodySmall

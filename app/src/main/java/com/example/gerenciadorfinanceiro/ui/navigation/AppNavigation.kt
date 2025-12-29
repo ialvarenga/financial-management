@@ -15,6 +15,7 @@ import com.example.gerenciadorfinanceiro.ui.screens.creditcards.CreditCardsScree
 import com.example.gerenciadorfinanceiro.ui.screens.creditcards.AddEditCreditCardScreen
 import com.example.gerenciadorfinanceiro.ui.screens.creditcards.CreditCardDetailScreen
 import com.example.gerenciadorfinanceiro.ui.screens.creditcards.AddEditCreditCardItemScreen
+import com.example.gerenciadorfinanceiro.ui.screens.creditcards.ImportCsvScreen
 import com.example.gerenciadorfinanceiro.ui.screens.recurrences.RecurrencesScreen
 import com.example.gerenciadorfinanceiro.ui.screens.recurrences.AddEditRecurrenceScreen
 import com.example.gerenciadorfinanceiro.ui.screens.transactions.AddTransferScreen
@@ -38,6 +39,9 @@ sealed class Screen(val route: String) {
     }
     object AddEditCreditCardItem : Screen("credit_cards/bills/{billId}/items/add_edit?itemId={itemId}") {
         fun createRoute(billId: Long, itemId: Long? = null) = "credit_cards/bills/$billId/items/add_edit?itemId=${itemId ?: -1}"
+    }
+    object ImportCsv : Screen("credit_cards/{cardId}/import_csv") {
+        fun createRoute(cardId: Long) = "credit_cards/$cardId/import_csv"
     }
     object Recurrences : Screen("recurrences")
     object AddEditRecurrence : Screen("recurrences/add_edit?recurrenceId={recurrenceId}") {
@@ -132,14 +136,17 @@ fun AppNavigation(navController: NavHostController) {
                 type = NavType.StringType
             })
         ) {
+            val cardId = it.arguments?.getString("cardId")?.toLongOrNull() ?: -1
             CreditCardDetailScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToEdit = {
-                    val cardId = it.arguments?.getString("cardId")?.toLongOrNull() ?: -1
                     navController.navigate(Screen.AddEditCreditCard.createRoute(cardId))
                 },
                 onNavigateToAddItem = { billId ->
                     navController.navigate(Screen.AddEditCreditCardItem.createRoute(billId))
+                },
+                onNavigateToImportCsv = {
+                    navController.navigate(Screen.ImportCsv.createRoute(cardId))
                 }
             )
         }
@@ -157,6 +164,19 @@ fun AppNavigation(navController: NavHostController) {
             )
         ) {
             AddEditCreditCardItemScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.ImportCsv.route,
+            arguments = listOf(
+                navArgument("cardId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            ImportCsvScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
