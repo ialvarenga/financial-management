@@ -37,5 +37,8 @@ object DatabaseModule {
 
     @Provides
     fun provideCreditCardBillDao(database: AppDatabase) = database.creditCardBillDao()
+
+    @Provides
+    fun provideCreditCardItemDao(database: AppDatabase) = database.creditCardItemDao()
 }
 

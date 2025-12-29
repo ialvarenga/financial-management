@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardBill
+import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.domain.model.BillStatus
 import com.example.gerenciadorfinanceiro.util.toReais
 import java.time.Instant
@@ -24,10 +25,12 @@ import java.util.Locale
 fun CreditCardDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: () -> Unit,
+    onNavigateToAddItem: (Long) -> Unit,
     viewModel: CreditCardDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var itemToDelete by remember { mutableStateOf<CreditCardItem?>(null) }
 
     Scaffold(
         topBar = {
@@ -47,6 +50,13 @@ fun CreditCardDetailScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            uiState.currentBill?.let { bill ->
+                FloatingActionButton(onClick = { onNavigateToAddItem(bill.id) }) {
+                    Icon(Icons.Default.Add, contentDescription = "Adicionar item")
+                }
+            }
         }
     ) { paddingValues ->
         if (uiState.isLoading) {
@@ -176,6 +186,44 @@ fun CreditCardDetailScreen(
                     }
                 }
 
+                // Current Bill Items
+                if (uiState.currentBill != null) {
+                    item {
+                        Text(
+                            text = "Itens da Fatura",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+
+                    if (uiState.currentBillItems.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Nenhum item na fatura",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        items(uiState.currentBillItems, key = { it.id }) { item ->
+                            CreditCardItemCard(
+                                item = item,
+                                onDelete = { itemToDelete = item }
+                            )
+                        }
+                    }
+                }
+
                 // Bill History Section
                 item {
                     Text(
@@ -212,7 +260,7 @@ fun CreditCardDetailScreen(
         }
     }
 
-    // Delete confirmation dialog
+    // Delete card confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -229,6 +277,37 @@ fun CreditCardDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // Delete item confirmation dialog
+    itemToDelete?.let { item ->
+        val isInstallment = item.installmentGroupId != null
+        AlertDialog(
+            onDismissRequest = { itemToDelete = null },
+            title = { Text("Excluir item") },
+            text = {
+                Text(
+                    if (isInstallment) {
+                        "Este item faz parte de uma compra parcelada. Deseja excluir todas as ${item.totalInstallments} parcelas?"
+                    } else {
+                        "Deseja excluir este item?"
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteItem(item)
+                    itemToDelete = null
+                }) {
+                    Text("Excluir", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { itemToDelete = null }) {
                     Text("Cancelar")
                 }
             }
@@ -320,4 +399,79 @@ fun BillStatusChip(status: BillStatus) {
             labelColor = color
         )
     )
+}
+
+@Composable
+fun CreditCardItemCard(
+    item: CreditCardItem,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Category icon with color
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Category,
+                        contentDescription = null,
+                        tint = item.category.color
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        text = item.category.displayName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (item.totalInstallments > 1) {
+                        Text(
+                            text = "Parcela ${item.installmentNumber}/${item.totalInstallments}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = item.amount.toReais(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Excluir",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    }
 }

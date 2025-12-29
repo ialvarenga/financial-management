@@ -14,6 +14,7 @@ import com.example.gerenciadorfinanceiro.ui.screens.transactions.AddEditTransact
 import com.example.gerenciadorfinanceiro.ui.screens.creditcards.CreditCardsScreen
 import com.example.gerenciadorfinanceiro.ui.screens.creditcards.AddEditCreditCardScreen
 import com.example.gerenciadorfinanceiro.ui.screens.creditcards.CreditCardDetailScreen
+import com.example.gerenciadorfinanceiro.ui.screens.creditcards.AddEditCreditCardItemScreen
 
 sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
@@ -31,6 +32,9 @@ sealed class Screen(val route: String) {
     }
     object CreditCardDetail : Screen("credit_cards/detail/{cardId}") {
         fun createRoute(cardId: Long) = "credit_cards/detail/$cardId"
+    }
+    object AddEditCreditCardItem : Screen("credit_cards/bills/{billId}/items/add_edit?itemId={itemId}") {
+        fun createRoute(billId: Long, itemId: Long? = null) = "credit_cards/bills/$billId/items/add_edit?itemId=${itemId ?: -1}"
     }
 
     // Will add more screens later
@@ -120,7 +124,27 @@ fun AppNavigation(navController: NavHostController) {
                 onNavigateToEdit = {
                     val cardId = it.arguments?.getString("cardId")?.toLongOrNull() ?: -1
                     navController.navigate(Screen.AddEditCreditCard.createRoute(cardId))
+                },
+                onNavigateToAddItem = { billId ->
+                    navController.navigate(Screen.AddEditCreditCardItem.createRoute(billId))
                 }
+            )
+        }
+
+        composable(
+            route = Screen.AddEditCreditCardItem.route,
+            arguments = listOf(
+                navArgument("billId") {
+                    type = NavType.StringType
+                },
+                navArgument("itemId") {
+                    type = NavType.StringType
+                    defaultValue = "-1"
+                }
+            )
+        ) {
+            AddEditCreditCardItemScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
