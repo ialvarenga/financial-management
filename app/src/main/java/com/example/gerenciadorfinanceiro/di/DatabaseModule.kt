@@ -40,5 +40,8 @@ object DatabaseModule {
 
     @Provides
     fun provideCreditCardItemDao(database: AppDatabase) = database.creditCardItemDao()
+
+    @Provides
+    fun provideRecurrenceDao(database: AppDatabase) = database.recurrenceDao()
 }
 

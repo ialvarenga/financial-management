@@ -3,7 +3,10 @@ package com.example.gerenciadorfinanceiro.ui.screens.transactions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gerenciadorfinanceiro.data.local.entity.TransactionWithAccount
+import com.example.gerenciadorfinanceiro.domain.model.ProjectedRecurrence
 import com.example.gerenciadorfinanceiro.domain.usecase.CompleteTransactionUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.ConfirmRecurrencePaymentUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyExpensesUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyTransactionsUseCase
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import com.example.gerenciadorfinanceiro.data.repository.TransactionRepository
@@ -15,6 +18,7 @@ import javax.inject.Inject
 
 data class TransactionsUiState(
     val transactions: List<TransactionWithAccount> = emptyList(),
+    val projectedRecurrences: List<ProjectedRecurrence> = emptyList(),
     val filteredTransactions: List<TransactionWithAccount> = emptyList(),
     val selectedMonth: Int = LocalDate.now().monthValue,
     val selectedYear: Int = LocalDate.now().year,
@@ -27,7 +31,9 @@ data class TransactionsUiState(
 @HiltViewModel
 class TransactionsViewModel @Inject constructor(
     private val getMonthlyTransactionsUseCase: GetMonthlyTransactionsUseCase,
+    private val getMonthlyExpensesUseCase: GetMonthlyExpensesUseCase,
     private val completeTransactionUseCase: CompleteTransactionUseCase,
+    private val confirmRecurrencePaymentUseCase: ConfirmRecurrencePaymentUseCase,
     private val transactionRepository: TransactionRepository
 ) : ViewModel() {
 
@@ -42,7 +48,10 @@ class TransactionsViewModel @Inject constructor(
     ) { month, year, filterType ->
         Triple(month, year, filterType)
     }.flatMapLatest { (month, year, filterType) ->
-        getMonthlyTransactionsUseCase(month, year).map { transactions ->
+        combine(
+            getMonthlyTransactionsUseCase(month, year),
+            getMonthlyExpensesUseCase(month, year)
+        ) { transactions, projectedRecurrences ->
             val filtered = if (filterType != null) {
                 transactions.filter { it.transaction.type == filterType }
             } else {
@@ -59,6 +68,7 @@ class TransactionsViewModel @Inject constructor(
 
             TransactionsUiState(
                 transactions = transactions,
+                projectedRecurrences = projectedRecurrences,
                 filteredTransactions = filtered,
                 selectedMonth = month,
                 selectedYear = year,
@@ -95,6 +105,16 @@ class TransactionsViewModel @Inject constructor(
     fun completeTransaction(transactionId: Long) {
         viewModelScope.launch {
             completeTransactionUseCase(transactionId)
+        }
+    }
+
+    fun confirmRecurrence(projectedRecurrence: ProjectedRecurrence, selectedAccountId: Long? = null) {
+        viewModelScope.launch {
+            confirmRecurrencePaymentUseCase(
+                projectedRecurrence = projectedRecurrence,
+                markAsCompleted = true,
+                selectedAccountId = selectedAccountId
+            )
         }
     }
 }
