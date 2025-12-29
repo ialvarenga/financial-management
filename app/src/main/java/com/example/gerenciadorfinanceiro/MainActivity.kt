@@ -49,6 +49,16 @@ fun MainScreen() {
                     }
                 )
                 NavigationBarItem(
+                    icon = { Icon(Icons.Default.Receipt, contentDescription = "Transações") },
+                    label = { Text("Transações") },
+                    selected = currentRoute == Screen.Transactions.route,
+                    onClick = {
+                        navController.navigate(Screen.Transactions.route) {
+                            popUpTo(Screen.Dashboard.route)
+                        }
+                    }
+                )
+                NavigationBarItem(
                     icon = { Icon(Icons.Default.AccountBalance, contentDescription = "Contas") },
                     label = { Text("Contas") },
                     selected = currentRoute == Screen.Accounts.route,

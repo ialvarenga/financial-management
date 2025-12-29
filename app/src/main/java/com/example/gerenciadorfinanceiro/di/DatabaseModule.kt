@@ -28,5 +28,8 @@ object DatabaseModule {
 
     @Provides
     fun provideAccountDao(database: AppDatabase) = database.accountDao()
+
+    @Provides
+    fun provideTransactionDao(database: AppDatabase) = database.transactionDao()
 }
 
