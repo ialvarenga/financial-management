@@ -11,6 +11,9 @@ import com.example.gerenciadorfinanceiro.ui.screens.accounts.AccountsScreen
 import com.example.gerenciadorfinanceiro.ui.screens.accounts.AddEditAccountScreen
 import com.example.gerenciadorfinanceiro.ui.screens.transactions.TransactionsScreen
 import com.example.gerenciadorfinanceiro.ui.screens.transactions.AddEditTransactionScreen
+import com.example.gerenciadorfinanceiro.ui.screens.creditcards.CreditCardsScreen
+import com.example.gerenciadorfinanceiro.ui.screens.creditcards.AddEditCreditCardScreen
+import com.example.gerenciadorfinanceiro.ui.screens.creditcards.CreditCardDetailScreen
 
 sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
@@ -21,6 +24,13 @@ sealed class Screen(val route: String) {
     object Transactions : Screen("transactions")
     object AddEditTransaction : Screen("transactions/add_edit?transactionId={transactionId}") {
         fun createRoute(transactionId: Long? = null) = "transactions/add_edit?transactionId=${transactionId ?: -1}"
+    }
+    object CreditCards : Screen("credit_cards")
+    object AddEditCreditCard : Screen("credit_cards/add_edit?cardId={cardId}") {
+        fun createRoute(cardId: Long? = null) = "credit_cards/add_edit?cardId=${cardId ?: -1}"
+    }
+    object CreditCardDetail : Screen("credit_cards/detail/{cardId}") {
+        fun createRoute(cardId: Long) = "credit_cards/detail/$cardId"
     }
 
     // Will add more screens later
@@ -73,6 +83,44 @@ fun AppNavigation(navController: NavHostController) {
         ) {
             AddEditTransactionScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.CreditCards.route) {
+            CreditCardsScreen(
+                onNavigateToAddEdit = { cardId ->
+                    navController.navigate(Screen.AddEditCreditCard.createRoute(cardId))
+                },
+                onNavigateToDetail = { cardId ->
+                    navController.navigate(Screen.CreditCardDetail.createRoute(cardId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.AddEditCreditCard.route,
+            arguments = listOf(navArgument("cardId") {
+                type = NavType.StringType
+                defaultValue = "-1"
+            })
+        ) {
+            AddEditCreditCardScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.CreditCardDetail.route,
+            arguments = listOf(navArgument("cardId") {
+                type = NavType.StringType
+            })
+        ) {
+            CreditCardDetailScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = {
+                    val cardId = it.arguments?.getString("cardId")?.toLongOrNull() ?: -1
+                    navController.navigate(Screen.AddEditCreditCard.createRoute(cardId))
+                }
             )
         }
 

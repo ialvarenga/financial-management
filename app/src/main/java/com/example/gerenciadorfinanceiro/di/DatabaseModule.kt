@@ -31,5 +31,11 @@ object DatabaseModule {
 
     @Provides
     fun provideTransactionDao(database: AppDatabase) = database.transactionDao()
+
+    @Provides
+    fun provideCreditCardDao(database: AppDatabase) = database.creditCardDao()
+
+    @Provides
+    fun provideCreditCardBillDao(database: AppDatabase) = database.creditCardBillDao()
 }
 
