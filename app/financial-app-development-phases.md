@@ -12,7 +12,7 @@ Phase 2: Independent Entities (Bank, Category)        ✅ COMPLETED (as Enums)
 Phase 3: Account Management                           ✅ COMPLETED
 Phase 4: Basic Transactions                           ✅ COMPLETED
 Phase 5: Credit Card Structure                        ✅ COMPLETED
-Phase 6: Credit Card Items & Installments             ⏳ PENDING
+Phase 6: Credit Card Items & Installments             ✅ COMPLETED
 Phase 7: Recurrences                                  ⏳ PENDING
 Phase 8: Transfers                                    ⏳ PENDING
 Phase 9: Dashboard & Projections                      ⏳ PENDING
@@ -24,8 +24,8 @@ Phase 10: Polish & Extras                             ⏳ PENDING
 ## 🎯 Current Project Status
 
 **Last Updated:** December 29, 2025
-**Current Phase:** Phase 5 Complete - Ready for Phase 6
-**Commit:** [pending] - Implement Phase 5: Credit Card Structure
+**Current Phase:** Phase 6 Complete - Ready for Phase 7 (Recurrences)
+**Last Commit:** [pending] - Implement Phase 6: Credit Card Items & Installments
 
 ### ✅ Completed Phases
 
@@ -92,6 +92,22 @@ Phase 10: Polish & Extras                             ⏳ PENDING
 - ✅ Credit limit, closing/due day tracking
 - ✅ Payment account association (optional)
 
+#### Phase 6: Credit Card Items & Installments
+- ✅ CreditCardItem entity with installment support
+- ✅ CreditCardItemDao with bill queries and installment group support
+- ✅ CreditCardItemRepository with full CRUD operations
+- ✅ AddCreditCardItemUseCase (single items with bill total update)
+- ✅ CreateInstallmentPurchaseUseCase (2-12x installments across bills)
+- ✅ AddEditCreditCardItemViewModel with installment selection
+- ✅ CreditCardDetailViewModel updated to load bill items
+- ✅ AddEditCreditCardItemScreen with category dropdown and installment selector
+- ✅ CreditCardDetailScreen updated to display items with FAB
+- ✅ Navigation integration (Screen.AddEditCreditCardItem)
+- ✅ Bill total amount auto-calculation
+- ✅ Automatic bill creation for future months (installments)
+- ✅ Delete item with installment group support
+- ✅ Database version updated to 5
+
 ### 📁 Current Project Structure
 
 ```
@@ -114,19 +130,26 @@ GerenciadorFinanceiro/
 │   │   │       ├── Account.kt            ✅ Account entity
 │   │   │       ├── Transaction.kt        ✅ Transaction entity
 │   │   │       ├── CreditCard.kt         ✅ CreditCard entity
-│   │   │       └── CreditCardBill.kt     ✅ CreditCardBill entity
+│   │   │       ├── CreditCardBill.kt     ✅ CreditCardBill entity
+│   │   │       └── CreditCardItem.kt     ✅ CreditCardItem entity
 │   │   └── repository/
 │   │       ├── AccountRepository.kt      ✅ Account repository
 │   │       ├── TransactionRepository.kt  ✅ Transaction repository
 │   │       ├── CreditCardRepository.kt   ✅ CreditCard repository
-│   │       └── CreditCardBillRepository.kt ✅ CreditCardBill repository
+│   │       ├── CreditCardBillRepository.kt ✅ CreditCardBill repository
+│   │       └── CreditCardItemRepository.kt ✅ CreditCardItem repository
 │   │
 │   ├── domain/
 │   │   ├── model/
 │   │   │   ├── Bank.kt                   ✅ Bank enum (23 banks)
 │   │   │   ├── Category.kt               ✅ Category enum (25+ categories)
 │   │   │   └── Enums.kt                  ✅ TransactionType, Status, etc.
-│   │   └── usecase/                      ⏳ Ready for Phase 4+
+│   │   └── usecase/
+│   │       ├── CreateTransactionUseCase.kt ✅ Transaction creation
+│   │       ├── CompleteTransactionUseCase.kt ✅ Transaction completion
+│   │       ├── GetMonthlyTransactionsUseCase.kt ✅ Monthly transactions
+│   │       ├── AddCreditCardItemUseCase.kt ✅ Add credit card item
+│   │       └── CreateInstallmentPurchaseUseCase.kt ✅ Installment purchases
 │   │
 │   ├── di/
 │   │   └── DatabaseModule.kt             ✅ Hilt DI (provides all DAOs)
@@ -150,8 +173,10 @@ GerenciadorFinanceiro/
 │   │   │       ├── CreditCardsViewModel.kt ✅ ViewModel
 │   │   │       ├── AddEditCreditCardScreen.kt ✅ Form screen
 │   │   │       ├── AddEditCreditCardViewModel.kt ✅ ViewModel
-│   │   │       ├── CreditCardDetailScreen.kt ✅ Detail screen
-│   │   │       └── CreditCardDetailViewModel.kt ✅ ViewModel
+│   │   │       ├── CreditCardDetailScreen.kt ✅ Detail screen (with items)
+│   │   │       ├── CreditCardDetailViewModel.kt ✅ ViewModel
+│   │   │       ├── AddEditCreditCardItemScreen.kt ✅ Add item screen
+│   │   │       └── AddEditCreditCardItemViewModel.kt ✅ ViewModel
 │   │   ├── navigation/
 │   │   │   └── AppNavigation.kt          ✅ NavHost with routes
 │   │   ├── theme/                         ✅ Material 3 theme
@@ -167,7 +192,7 @@ GerenciadorFinanceiro/
 
 ### 🔧 Key Implementation Details
 
-**Database Version:** 4
+**Database Version:** 5
 **Package Name:** com.example.gerenciadorfinanceiro
 **Min SDK:** 26 (Android 8.0)
 
@@ -2079,12 +2104,14 @@ With:
 
 To show bill items
 
-### Test Phase 6
-- [ ] Can add single item to bill
-- [ ] Can add installment purchase
-- [ ] Installments create items in future bills
-- [ ] Bill total calculates correctly
-- [ ] Can delete item
+### Test Phase 6 ✅ COMPLETED
+- [x] Can add single item to bill
+- [x] Can add installment purchase (2-12x)
+- [x] Installments create items in future bills automatically
+- [x] Bill total calculates correctly and updates reactively
+- [x] Can delete item (with installment group support)
+- [x] UI displays items with category, amount, and installment info
+- [x] FAB appears on current bill to add items
 
 ---
 
@@ -2294,14 +2321,14 @@ During development, you can use `.fallbackToDestructiveMigration()` but remove i
 | 3 | Account | Bank | ✅ COMPLETED |
 | 4 | Transaction | Account, Category | ✅ COMPLETED |
 | 5 | CreditCard, Bill | Bank, Account | ✅ COMPLETED |
-| 6 | CreditCardItem | CreditCardBill, Category | ⏳ **NEXT** |
-| 7 | Recurrence | Account, CreditCard, Category | ⏳ Pending |
+| 6 | CreditCardItem | CreditCardBill, Category | ✅ COMPLETED |
+| 7 | Recurrence | Account, CreditCard, Category | ⏳ **NEXT** |
 | 8 | Transfer | Account | ⏳ Pending |
 | 9 | Dashboard | All | ⏳ Pending |
 | 10 | Polish | All | ⏳ Pending |
 
-**Current Status:** Phase 5 Complete ✅
-**Next Phase:** Phase 6 - Credit Card Items & Installments
-**Last Commit:** [pending] - Implement Phase 5: Credit Card Structure
+**Current Status:** Phase 6 Complete ✅
+**Next Phase:** Phase 7 - Recurrences
+**Last Commit:** [pending] - Implement Phase 6: Credit Card Items & Installments
 
 Each phase builds on the previous, and you can test thoroughly before moving forward.
