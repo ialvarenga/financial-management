@@ -25,7 +25,10 @@ Phase 10: Polish & Extras                             ⏳ PENDING
 
 **Last Updated:** December 29, 2025
 **Current Phase:** Phase 6 Complete - Ready for Phase 7 (Recurrences)
-**Last Commit:** [pending] - Implement Phase 6: Credit Card Items & Installments
+**Last Commits:**
+- `d398ee5` - fix: correct installment distribution based on bill status
+- `5381d3c` - fix: resolve flow collection and duplicate key issues
+- `27fabf3` - feat: implement credit card items with automatic bill creation
 
 ### ✅ Completed Phases
 
@@ -98,15 +101,20 @@ Phase 10: Polish & Extras                             ⏳ PENDING
 - ✅ CreditCardItemRepository with full CRUD operations
 - ✅ AddCreditCardItemUseCase (single items with bill total update)
 - ✅ CreateInstallmentPurchaseUseCase (2-12x installments across bills)
+- ✅ GetOrCreateBillUseCase (automatic bill creation based on closing day)
 - ✅ AddEditCreditCardItemViewModel with installment selection
-- ✅ CreditCardDetailViewModel updated to load bill items
+- ✅ CreditCardDetailViewModel updated to load bill items with flatMapLatest
 - ✅ AddEditCreditCardItemScreen with category dropdown and installment selector
 - ✅ CreditCardDetailScreen updated to display items with FAB
 - ✅ Navigation integration (Screen.AddEditCreditCardItem)
 - ✅ Bill total amount auto-calculation
-- ✅ Automatic bill creation for future months (installments)
+- ✅ Automatic bill creation for current and future months
 - ✅ Delete item with installment group support
 - ✅ Database version updated to 5
+- ✅ **Bug Fix:** Flow collection issues resolved (nested infinite flows)
+- ✅ **Bug Fix:** LazyColumn duplicate key crashes fixed
+- ✅ **Bug Fix:** Installment distribution respects bill status (OPEN vs CLOSED)
+- ✅ **Feature:** Items start from current bill if OPEN, next bill if CLOSED
 
 ### 📁 Current Project Structure
 
@@ -119,13 +127,14 @@ GerenciadorFinanceiro/
 │   ├── data/
 │   │   ├── local/
 │   │   │   ├── database/
-│   │   │   │   ├── AppDatabase.kt        ✅ Room DB (v4, all entities)
+│   │   │   │   ├── AppDatabase.kt        ✅ Room DB (v5, all entities)
 │   │   │   │   ├── Converters.kt         ✅ All enum converters
 │   │   │   │   └── dao/
 │   │   │   │       ├── AccountDao.kt     ✅ Account CRUD
 │   │   │   │       ├── TransactionDao.kt ✅ Transaction CRUD
 │   │   │   │       ├── CreditCardDao.kt  ✅ CreditCard CRUD
-│   │   │   │       └── CreditCardBillDao.kt ✅ CreditCardBill CRUD
+│   │   │   │       ├── CreditCardBillDao.kt ✅ CreditCardBill CRUD
+│   │   │   │       └── CreditCardItemDao.kt ✅ CreditCardItem CRUD
 │   │   │   └── entity/
 │   │   │       ├── Account.kt            ✅ Account entity
 │   │   │       ├── Transaction.kt        ✅ Transaction entity
@@ -149,7 +158,8 @@ GerenciadorFinanceiro/
 │   │       ├── CompleteTransactionUseCase.kt ✅ Transaction completion
 │   │       ├── GetMonthlyTransactionsUseCase.kt ✅ Monthly transactions
 │   │       ├── AddCreditCardItemUseCase.kt ✅ Add credit card item
-│   │       └── CreateInstallmentPurchaseUseCase.kt ✅ Installment purchases
+│   │       ├── CreateInstallmentPurchaseUseCase.kt ✅ Installment purchases
+│   │       └── GetOrCreateBillUseCase.kt ✅ Auto bill creation
 │   │
 │   ├── di/
 │   │   └── DatabaseModule.kt             ✅ Hilt DI (provides all DAOs)
@@ -192,7 +202,7 @@ GerenciadorFinanceiro/
 
 ### 🔧 Key Implementation Details
 
-**Database Version:** 5
+**Database Version:** 5 (updated in Phase 6)
 **Package Name:** com.example.gerenciadorfinanceiro
 **Min SDK:** 26 (Android 8.0)
 
@@ -2108,10 +2118,14 @@ To show bill items
 - [x] Can add single item to bill
 - [x] Can add installment purchase (2-12x)
 - [x] Installments create items in future bills automatically
+- [x] Installments start from current bill if OPEN, next bill if CLOSED
+- [x] Bill is created automatically for current month on card detail view
 - [x] Bill total calculates correctly and updates reactively
 - [x] Can delete item (with installment group support)
 - [x] UI displays items with category, amount, and installment info
 - [x] FAB appears on current bill to add items
+- [x] No crashes when adding/viewing items (flow and key issues fixed)
+- [x] Navigation works correctly between screens
 
 ---
 
@@ -2329,6 +2343,9 @@ During development, you can use `.fallbackToDestructiveMigration()` but remove i
 
 **Current Status:** Phase 6 Complete ✅
 **Next Phase:** Phase 7 - Recurrences
-**Last Commit:** [pending] - Implement Phase 6: Credit Card Items & Installments
+**Last Commits:**
+- `d398ee5` - fix: correct installment distribution based on bill status
+- `5381d3c` - fix: resolve flow collection and duplicate key issues
+- `27fabf3` - feat: implement credit card items with automatic bill creation
 
 Each phase builds on the previous, and you can test thoroughly before moving forward.
