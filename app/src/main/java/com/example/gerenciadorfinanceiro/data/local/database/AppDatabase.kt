@@ -9,12 +9,14 @@ import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardDao
 import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardItemDao
 import com.example.gerenciadorfinanceiro.data.local.database.dao.RecurrenceDao
 import com.example.gerenciadorfinanceiro.data.local.database.dao.TransactionDao
+import com.example.gerenciadorfinanceiro.data.local.database.dao.TransferDao
 import com.example.gerenciadorfinanceiro.data.local.entity.Account
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCard
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardBill
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.data.local.entity.Recurrence
 import com.example.gerenciadorfinanceiro.data.local.entity.Transaction
+import com.example.gerenciadorfinanceiro.data.local.entity.Transfer
 
 @Database(
     entities = [
@@ -23,9 +25,10 @@ import com.example.gerenciadorfinanceiro.data.local.entity.Transaction
         CreditCard::class,
         CreditCardBill::class,
         CreditCardItem::class,
-        Recurrence::class
+        Recurrence::class,
+        Transfer::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -36,5 +39,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun creditCardBillDao(): CreditCardBillDao
     abstract fun creditCardItemDao(): CreditCardItemDao
     abstract fun recurrenceDao(): RecurrenceDao
+    abstract fun transferDao(): TransferDao
 }
 

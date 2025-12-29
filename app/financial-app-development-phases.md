@@ -117,6 +117,37 @@ Phase 10: Polish & Extras                             ⏳ PENDING
 - ✅ **Bug Fix:** Installment distribution respects bill status (OPEN vs CLOSED)
 - ✅ **Feature:** Items start from current bill if OPEN, next bill if CLOSED
 
+#### Phase 7: Recurrences
+- ✅ Recurrence entity with paymentMethod field
+- ✅ RecurrenceDao with CRUD operations
+- ✅ RecurrenceRepository
+- ✅ GetMonthlyExpensesUseCase with projected recurrences
+- ✅ ConfirmRecurrencePaymentUseCase (with optional account selection)
+- ✅ RecurrencesViewModel and AddEditRecurrenceViewModel
+- ✅ RecurrencesScreen with list, add, edit, delete functionality
+- ✅ AddEditRecurrenceScreen with payment method selection
+- ✅ TransactionsScreen shows projected recurrences with confirm button
+- ✅ Account selection dialog for BOLETO and unassigned recurrences
+- ✅ All frequencies supported: DAILY, WEEKLY, MONTHLY, YEARLY
+
+#### Phase 8: Transfers
+- ✅ Transfer entity with from/to account references and optional fee
+- ✅ TransferWithAccounts data class for display purposes
+- ✅ TransferDao with CRUD operations and date range queries
+- ✅ TransferRepository with full CRUD operations
+- ✅ ExecuteTransferUseCase (creates transfer and updates balances atomically)
+- ✅ CompleteTransferUseCase (completes pending transfer and updates balances)
+- ✅ GetMonthlyTransfersUseCase (gets transfers with account info)
+- ✅ AddTransferViewModel with form validation
+- ✅ AddTransferScreen with from/to account dropdowns and optional fee
+- ✅ TransactionsScreen updated to show transfers section
+- ✅ FAB shows menu dialog to choose between Transaction or Transfer
+- ✅ Transfer cards with different styling (tertiary color scheme)
+- ✅ Delete confirmation dialog for transfers
+- ✅ Complete pending transfers functionality
+- ✅ Database version updated to 8
+- ✅ Navigation integration (Screen.AddTransfer)
+
 ### 📁 Current Project Structure
 
 ```
@@ -128,7 +159,7 @@ GerenciadorFinanceiro/
 │   ├── data/
 │   │   ├── local/
 │   │   │   ├── database/
-│   │   │   │   ├── AppDatabase.kt        ✅ Room DB (v7, all entities)
+│   │   │   │   ├── AppDatabase.kt        ✅ Room DB (v8, all entities)
 │   │   │   │   ├── Converters.kt         ✅ All enum converters
 │   │   │   │   └── dao/
 │   │   │   │       ├── AccountDao.kt     ✅ Account CRUD
@@ -136,21 +167,24 @@ GerenciadorFinanceiro/
 │   │   │   │       ├── CreditCardDao.kt  ✅ CreditCard CRUD
 │   │   │   │       ├── CreditCardBillDao.kt ✅ CreditCardBill CRUD
 │   │   │   │       ├── CreditCardItemDao.kt ✅ CreditCardItem CRUD
-│   │   │   │       └── RecurrenceDao.kt  ✅ Recurrence CRUD
+│   │   │   │       ├── RecurrenceDao.kt  ✅ Recurrence CRUD
+│   │   │   │       └── TransferDao.kt    ✅ Transfer CRUD
 │   │   │   └── entity/
 │   │   │       ├── Account.kt            ✅ Account entity
 │   │   │       ├── Transaction.kt        ✅ Transaction entity
 │   │   │       ├── CreditCard.kt         ✅ CreditCard entity
 │   │   │       ├── CreditCardBill.kt     ✅ CreditCardBill entity
 │   │   │       ├── CreditCardItem.kt     ✅ CreditCardItem entity
-│   │   │       └── Recurrence.kt         ✅ Recurrence entity (with paymentMethod)
+│   │   │       ├── Recurrence.kt         ✅ Recurrence entity (with paymentMethod)
+│   │   │       └── Transfer.kt           ✅ Transfer entity (with TransferWithAccounts)
 │   │   └── repository/
 │   │       ├── AccountRepository.kt      ✅ Account repository
 │   │       ├── TransactionRepository.kt  ✅ Transaction repository
 │   │       ├── CreditCardRepository.kt   ✅ CreditCard repository
 │   │       ├── CreditCardBillRepository.kt ✅ CreditCardBill repository
 │   │       ├── CreditCardItemRepository.kt ✅ CreditCardItem repository
-│   │       └── RecurrenceRepository.kt   ✅ Recurrence repository
+│   │       ├── RecurrenceRepository.kt   ✅ Recurrence repository
+│   │       └── TransferRepository.kt     ✅ Transfer repository
 │   │
 │   ├── domain/
 │   │   ├── model/
@@ -166,10 +200,13 @@ GerenciadorFinanceiro/
 │   │       ├── CreateInstallmentPurchaseUseCase.kt ✅ Installment purchases
 │   │       ├── GetOrCreateBillUseCase.kt ✅ Auto bill creation
 │   │       ├── GetMonthlyExpensesUseCase.kt ✅ Monthly expenses with projected recurrences
-│   │       └── ConfirmRecurrencePaymentUseCase.kt ✅ Confirm recurrence (with optional account selection)
+│   │       ├── ConfirmRecurrencePaymentUseCase.kt ✅ Confirm recurrence (with optional account selection)
+│   │       ├── ExecuteTransferUseCase.kt ✅ Execute transfer (create + balance update)
+│   │       ├── CompleteTransferUseCase.kt ✅ Complete pending transfer
+│   │       └── GetMonthlyTransfersUseCase.kt ✅ Get monthly transfers with accounts
 │   │
 │   ├── di/
-│   │   └── DatabaseModule.kt             ✅ Hilt DI (provides all DAOs)
+│   │   └── DatabaseModule.kt             ✅ Hilt DI (provides all DAOs including TransferDao)
 │   │
 │   ├── ui/
 │   │   ├── screens/
@@ -181,10 +218,12 @@ GerenciadorFinanceiro/
 │   │   │   │   ├── AddEditAccountScreen.kt ✅ Form screen
 │   │   │   │   └── AddEditAccountViewModel.kt ✅ ViewModel
 │   │   │   ├── transactions/
-│   │   │   │   ├── TransactionsScreen.kt ✅ List screen (with projected recurrences & account selection)
-│   │   │   │   ├── TransactionsViewModel.kt ✅ ViewModel
+│   │   │   │   ├── TransactionsScreen.kt ✅ List screen (with transfers & recurrences)
+│   │   │   │   ├── TransactionsViewModel.kt ✅ ViewModel (with transfers support)
 │   │   │   │   ├── AddEditTransactionScreen.kt ✅ Form screen
-│   │   │   │   └── AddEditTransactionViewModel.kt ✅ ViewModel
+│   │   │   │   ├── AddEditTransactionViewModel.kt ✅ ViewModel
+│   │   │   │   ├── AddTransferScreen.kt  ✅ Transfer form screen
+│   │   │   │   └── AddTransferViewModel.kt ✅ Transfer ViewModel
 │   │   │   ├── creditcards/
 │   │   │   │   ├── CreditCardsScreen.kt  ✅ List screen
 │   │   │   │   ├── CreditCardsViewModel.kt ✅ ViewModel
@@ -2188,7 +2227,7 @@ To show projected recurrences with "confirm" button
 
 ---
 
-## Phase 8: Transfers
+## Phase 8: Transfers ✅ COMPLETED
 
 ### Goals
 - Create Transfer entity
@@ -2196,29 +2235,57 @@ To show projected recurrences with "confirm" button
 
 ### Tasks
 
-#### 8.1 Create Transfer Entity
+#### 8.1 Create Transfer Entity ✅
+- Transfer entity with fromAccountId, toAccountId, amount, fee, status, date
+- TransferWithAccounts data class for UI display
 
-#### 8.2 Create TransferDao
+#### 8.2 Create TransferDao ✅
+- Full CRUD operations
+- Date range queries for monthly view
+- Account-specific queries
+- Status queries
 
-#### 8.3 Create TransferRepository
+#### 8.3 Create TransferRepository ✅
+- Wrapper around TransferDao
+- All repository methods implemented
 
-#### 8.4 Create TransferUseCase
+#### 8.4 Create Transfer Use Cases ✅
+- ExecuteTransferUseCase: Creates transfer and updates both account balances atomically
+- CompleteTransferUseCase: Completes pending transfer and updates balances
+- GetMonthlyTransfersUseCase: Gets transfers with account info for display
 
-Updates both account balances atomically
+Updates both account balances atomically:
+- Source account: decreases by (amount + fee)
+- Destination account: increases by amount
 
-#### 8.5 Create TransferScreen
+#### 8.5 Create Transfer UI ✅
+- AddTransferScreen with:
+  - Description field
+  - Amount field
+  - From account dropdown (with validation)
+  - To account dropdown (with validation)
+  - Optional fee field
+  - Status toggle (Pending/Completed)
+  - Date field
+  - Notes field
+- AddTransferViewModel with form validation
+- TransferItem composable for list display
 
-With:
-- From account dropdown
-- To account dropdown
-- Value
-- Optional fee
+#### 8.6 Integrate with TransactionsScreen ✅
+- FAB shows dialog to choose between Transaction or Transfer
+- Transfers displayed in separate section
+- Transfer cards with tertiary color scheme
+- Delete confirmation dialog for transfers
+- Complete pending transfers functionality
 
 ### Test Phase 8
-- [ ] Can transfer between accounts
-- [ ] Both balances update correctly
-- [ ] Fee deducts from source account
-- [ ] Can view transfer history
+- [x] Can transfer between accounts
+- [x] Both balances update correctly (when completed)
+- [x] Fee deducts from source account
+- [x] Can view transfer history in monthly view
+- [x] Can complete pending transfers
+- [x] Can delete transfers
+- [x] Cannot select same account for from and to
 
 ---
 
@@ -2352,15 +2419,15 @@ During development, you can use `.fallbackToDestructiveMigration()` but remove i
 | 5 | CreditCard, Bill | Bank, Account | ✅ COMPLETED |
 | 6 | CreditCardItem | CreditCardBill, Category | ✅ COMPLETED |
 | 7 | Recurrence | Account, CreditCard, Category | ✅ COMPLETED |
-| 8 | Transfer | Account | ⏳ **NEXT** |
-| 9 | Dashboard | All | ⏳ Pending |
+| 8 | Transfer | Account | ✅ COMPLETED |
+| 9 | Dashboard | All | ⏳ **NEXT** |
 | 10 | Polish | All | ⏳ Pending |
 
-**Current Status:** Phase 7 Complete ✅
-**Next Phase:** Phase 8 - Transfers
+**Current Status:** Phase 8 Complete ✅
+**Next Phase:** Phase 9 - Dashboard & Projections
 **Last Implementation:**
-- Phase 7: Complete recurrences system with projection, confirmation, and all frequencies supported
-- Database version updated to 6
-- TransactionsScreen now shows projected recurrences with confirm button
+- Phase 8: Complete transfers system with from/to accounts, optional fees, and integration into TransactionsScreen
+- FAB shows menu dialog to choose between Transaction or Transfer
+- Database version updated to 8
 
 Each phase builds on the previous, and you can test thoroughly before moving forward.

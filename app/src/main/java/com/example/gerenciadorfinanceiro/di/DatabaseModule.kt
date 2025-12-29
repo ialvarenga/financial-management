@@ -43,5 +43,8 @@ object DatabaseModule {
 
     @Provides
     fun provideRecurrenceDao(database: AppDatabase) = database.recurrenceDao()
+
+    @Provides
+    fun provideTransferDao(database: AppDatabase) = database.transferDao()
 }
 

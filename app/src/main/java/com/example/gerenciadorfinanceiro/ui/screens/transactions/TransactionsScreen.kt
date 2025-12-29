@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.data.local.entity.TransactionWithAccount
+import com.example.gerenciadorfinanceiro.data.local.entity.TransferWithAccounts
 import com.example.gerenciadorfinanceiro.domain.model.ProjectedRecurrence
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
@@ -29,11 +30,14 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun TransactionsScreen(
     onNavigateToAddEdit: (Long?) -> Unit,
+    onNavigateToAddTransfer: (Long?) -> Unit = {},
     viewModel: TransactionsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var transactionToDelete by remember { mutableStateOf<TransactionWithAccount?>(null) }
+    var transferToDelete by remember { mutableStateOf<TransferWithAccounts?>(null) }
     var showMonthPicker by remember { mutableStateOf(false) }
+    var showAddMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -47,8 +51,8 @@ fun TransactionsScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { onNavigateToAddEdit(null) }) {
-                Icon(Icons.Default.Add, contentDescription = "Adicionar transação")
+            FloatingActionButton(onClick = { showAddMenu = true }) {
+                Icon(Icons.Default.Add, contentDescription = "Adicionar")
             }
         }
     ) { paddingValues ->
@@ -150,12 +154,18 @@ fun TransactionsScreen(
                 ) {
                     CircularProgressIndicator()
                 }
-            } else if (uiState.filteredTransactions.isEmpty() && uiState.projectedRecurrences.isEmpty()) {
+            } else if (uiState.filteredTransactions.isEmpty() && uiState.projectedRecurrences.isEmpty() && uiState.transfers.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Nenhuma transação ou recorrência encontrada")
+                    Text(
+                        text = "Nenhuma transação, transferência ou recorrência encontrada",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             } else {
                 LazyColumn(
@@ -171,6 +181,25 @@ fun TransactionsScreen(
                             onDelete = { transactionToDelete = transactionWithAccount },
                             onComplete = { viewModel.completeTransaction(transactionWithAccount.transaction.id) }
                         )
+                    }
+
+                    // Transfers section
+                    if (uiState.transfers.isNotEmpty()) {
+                        item(key = "transfers_header") {
+                            Text(
+                                text = "Transferências",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            )
+                        }
+                        items(uiState.transfers, key = { "transfer_${it.transfer.id}" }) { transferWithAccounts ->
+                            TransferItem(
+                                transferWithAccounts = transferWithAccounts,
+                                onClick = { onNavigateToAddTransfer(transferWithAccounts.transfer.id) },
+                                onDelete = { transferToDelete = transferWithAccounts },
+                                onComplete = { viewModel.completeTransfer(transferWithAccounts.transfer.id) }
+                            )
+                        }
                     }
 
                     // Projected recurrences section
@@ -197,6 +226,100 @@ fun TransactionsScreen(
         }
     }
 
+    // Add menu dialog
+    if (showAddMenu) {
+        AlertDialog(
+            onDismissRequest = { showAddMenu = false },
+            title = { Text("Adicionar") },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showAddMenu = false
+                                onNavigateToAddEdit(null)
+                            },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Receipt,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Column {
+                                Text(
+                                    text = "Transação",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Receita ou despesa",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showAddMenu = false
+                                onNavigateToAddTransfer(null)
+                            },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.SwapHoriz,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                            Column {
+                                Text(
+                                    text = "Transferência",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "Entre contas",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAddMenu = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     // Delete confirmation dialog
     transactionToDelete?.let { transactionWithAccount ->
         AlertDialog(
@@ -213,6 +336,28 @@ fun TransactionsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { transactionToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // Delete transfer confirmation dialog
+    transferToDelete?.let { transferWithAccounts ->
+        AlertDialog(
+            onDismissRequest = { transferToDelete = null },
+            title = { Text("Excluir transferência") },
+            text = { Text("Deseja excluir a transferência '${transferWithAccounts.transfer.description}'?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteTransfer(transferWithAccounts.transfer.id)
+                    transferToDelete = null
+                }) {
+                    Text("Excluir")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { transferToDelete = null }) {
                     Text("Cancelar")
                 }
             }
@@ -471,3 +616,123 @@ fun ProjectedRecurrenceItem(
         )
     }
 }
+
+@Composable
+fun TransferItem(
+    transferWithAccounts: TransferWithAccounts,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    onComplete: () -> Unit
+) {
+    val transfer = transferWithAccounts.transfer
+    val fromAccount = transferWithAccounts.fromAccount
+    val toAccount = transferWithAccounts.toAccount
+    val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.SwapHoriz,
+                        contentDescription = "Transferência",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.tertiary
+                    )
+                    Text(
+                        text = transfer.description,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${fromAccount.name} → ${toAccount.name}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = transfer.date.toLocalDate().format(dateFormatter),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (transfer.fee > 0) {
+                    Text(
+                        text = "Taxa: ${transfer.fee.toReais()}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (transfer.status == TransactionStatus.PENDING) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    AssistChip(
+                        onClick = onComplete,
+                        label = { Text("Concluir", style = MaterialTheme.typography.labelSmall) },
+                        leadingIcon = { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    )
+                }
+            }
+
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = transfer.amount.toReais(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (transfer.status == TransactionStatus.COMPLETED) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = "Concluída",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Schedule,
+                            contentDescription = "Pendente",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Excluir",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
