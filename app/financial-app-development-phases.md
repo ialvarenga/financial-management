@@ -26,6 +26,7 @@ Phase 10: Polish & Extras                             ⏳ PENDING
 **Last Updated:** December 29, 2025
 **Current Phase:** Phase 7 Complete - Ready for Phase 8 (Transfers)
 **Last Commits:**
+- `fd03176` - feat: Add BOLETO payment method and flexible recurrence payment options
 - Phase 7 implementation: Recurrences with projection and confirmation
 - `d398ee5` - fix: correct installment distribution based on bill status
 - `5381d3c` - fix: resolve flow collection and duplicate key issues
@@ -127,39 +128,45 @@ GerenciadorFinanceiro/
 │   ├── data/
 │   │   ├── local/
 │   │   │   ├── database/
-│   │   │   │   ├── AppDatabase.kt        ✅ Room DB (v5, all entities)
+│   │   │   │   ├── AppDatabase.kt        ✅ Room DB (v7, all entities)
 │   │   │   │   ├── Converters.kt         ✅ All enum converters
 │   │   │   │   └── dao/
 │   │   │   │       ├── AccountDao.kt     ✅ Account CRUD
 │   │   │   │       ├── TransactionDao.kt ✅ Transaction CRUD
 │   │   │   │       ├── CreditCardDao.kt  ✅ CreditCard CRUD
 │   │   │   │       ├── CreditCardBillDao.kt ✅ CreditCardBill CRUD
-│   │   │   │       └── CreditCardItemDao.kt ✅ CreditCardItem CRUD
+│   │   │   │       ├── CreditCardItemDao.kt ✅ CreditCardItem CRUD
+│   │   │   │       └── RecurrenceDao.kt  ✅ Recurrence CRUD
 │   │   │   └── entity/
 │   │   │       ├── Account.kt            ✅ Account entity
 │   │   │       ├── Transaction.kt        ✅ Transaction entity
 │   │   │       ├── CreditCard.kt         ✅ CreditCard entity
 │   │   │       ├── CreditCardBill.kt     ✅ CreditCardBill entity
-│   │   │       └── CreditCardItem.kt     ✅ CreditCardItem entity
+│   │   │       ├── CreditCardItem.kt     ✅ CreditCardItem entity
+│   │   │       └── Recurrence.kt         ✅ Recurrence entity (with paymentMethod)
 │   │   └── repository/
 │   │       ├── AccountRepository.kt      ✅ Account repository
 │   │       ├── TransactionRepository.kt  ✅ Transaction repository
 │   │       ├── CreditCardRepository.kt   ✅ CreditCard repository
 │   │       ├── CreditCardBillRepository.kt ✅ CreditCardBill repository
-│   │       └── CreditCardItemRepository.kt ✅ CreditCardItem repository
+│   │       ├── CreditCardItemRepository.kt ✅ CreditCardItem repository
+│   │       └── RecurrenceRepository.kt   ✅ Recurrence repository
 │   │
 │   ├── domain/
 │   │   ├── model/
 │   │   │   ├── Bank.kt                   ✅ Bank enum (23 banks)
 │   │   │   ├── Category.kt               ✅ Category enum (25+ categories)
-│   │   │   └── Enums.kt                  ✅ TransactionType, Status, etc.
+│   │   │   ├── Enums.kt                  ✅ TransactionType, Status, PaymentMethod (with BOLETO), Frequency
+│   │   │   └── ProjectedRecurrence.kt    ✅ Projected recurrence model
 │   │   └── usecase/
 │   │       ├── CreateTransactionUseCase.kt ✅ Transaction creation
 │   │       ├── CompleteTransactionUseCase.kt ✅ Transaction completion
 │   │       ├── GetMonthlyTransactionsUseCase.kt ✅ Monthly transactions
 │   │       ├── AddCreditCardItemUseCase.kt ✅ Add credit card item
 │   │       ├── CreateInstallmentPurchaseUseCase.kt ✅ Installment purchases
-│   │       └── GetOrCreateBillUseCase.kt ✅ Auto bill creation
+│   │       ├── GetOrCreateBillUseCase.kt ✅ Auto bill creation
+│   │       ├── GetMonthlyExpensesUseCase.kt ✅ Monthly expenses with projected recurrences
+│   │       └── ConfirmRecurrencePaymentUseCase.kt ✅ Confirm recurrence (with optional account selection)
 │   │
 │   ├── di/
 │   │   └── DatabaseModule.kt             ✅ Hilt DI (provides all DAOs)
@@ -174,19 +181,24 @@ GerenciadorFinanceiro/
 │   │   │   │   ├── AddEditAccountScreen.kt ✅ Form screen
 │   │   │   │   └── AddEditAccountViewModel.kt ✅ ViewModel
 │   │   │   ├── transactions/
-│   │   │   │   ├── TransactionsScreen.kt ✅ List screen
+│   │   │   │   ├── TransactionsScreen.kt ✅ List screen (with projected recurrences & account selection)
 │   │   │   │   ├── TransactionsViewModel.kt ✅ ViewModel
 │   │   │   │   ├── AddEditTransactionScreen.kt ✅ Form screen
 │   │   │   │   └── AddEditTransactionViewModel.kt ✅ ViewModel
-│   │   │   └── creditcards/
-│   │   │       ├── CreditCardsScreen.kt  ✅ List screen
-│   │   │       ├── CreditCardsViewModel.kt ✅ ViewModel
-│   │   │       ├── AddEditCreditCardScreen.kt ✅ Form screen
-│   │   │       ├── AddEditCreditCardViewModel.kt ✅ ViewModel
-│   │   │       ├── CreditCardDetailScreen.kt ✅ Detail screen (with items)
-│   │   │       ├── CreditCardDetailViewModel.kt ✅ ViewModel
-│   │   │       ├── AddEditCreditCardItemScreen.kt ✅ Add item screen
-│   │   │       └── AddEditCreditCardItemViewModel.kt ✅ ViewModel
+│   │   │   ├── creditcards/
+│   │   │   │   ├── CreditCardsScreen.kt  ✅ List screen
+│   │   │   │   ├── CreditCardsViewModel.kt ✅ ViewModel
+│   │   │   │   ├── AddEditCreditCardScreen.kt ✅ Form screen
+│   │   │   │   ├── AddEditCreditCardViewModel.kt ✅ ViewModel
+│   │   │   │   ├── CreditCardDetailScreen.kt ✅ Detail screen (with items)
+│   │   │   │   ├── CreditCardDetailViewModel.kt ✅ ViewModel
+│   │   │   │   ├── AddEditCreditCardItemScreen.kt ✅ Add item screen
+│   │   │   │   └── AddEditCreditCardItemViewModel.kt ✅ ViewModel
+│   │   │   └── recurrences/
+│   │   │       ├── RecurrencesScreen.kt  ✅ List screen
+│   │   │       ├── RecurrencesViewModel.kt ✅ ViewModel
+│   │   │       ├── AddEditRecurrenceScreen.kt ✅ Form screen (with payment method selection)
+│   │   │       └── AddEditRecurrenceViewModel.kt ✅ ViewModel
 │   │   ├── navigation/
 │   │   │   └── AppNavigation.kt          ✅ NavHost with routes
 │   │   ├── theme/                         ✅ Material 3 theme
