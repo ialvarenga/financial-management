@@ -14,8 +14,8 @@ Phase 4: Basic Transactions                           ✅ COMPLETED
 Phase 5: Credit Card Structure                        ✅ COMPLETED
 Phase 6: Credit Card Items & Installments             ✅ COMPLETED
 Phase 7: Recurrences                                  ✅ COMPLETED
-Phase 8: Transfers                                    ⏳ PENDING
-Phase 9: Dashboard & Projections                      ⏳ PENDING
+Phase 8: Transfers                                    ✅ COMPLETED
+Phase 9: Dashboard & Projections                      ✅ COMPLETED
 Phase 10: Polish & Extras                             ⏳ PENDING
 ```
 
@@ -24,8 +24,10 @@ Phase 10: Polish & Extras                             ⏳ PENDING
 ## 🎯 Current Project Status
 
 **Last Updated:** December 29, 2025
-**Current Phase:** Phase 7 Complete - Ready for Phase 8 (Transfers)
+**Current Phase:** Phase 9 Complete - Ready for Phase 10 (Polish & Extras)
 **Last Commits:**
+- Phase 9 implementation: Dashboard & Projections with comprehensive UI
+- Phase 8 implementation: Complete transfers system with from/to accounts
 - `fd03176` - feat: Add BOLETO payment method and flexible recurrence payment options
 - Phase 7 implementation: Recurrences with projection and confirmation
 - `d398ee5` - fix: correct installment distribution based on bill status
@@ -148,6 +150,23 @@ Phase 10: Polish & Extras                             ⏳ PENDING
 - ✅ Database version updated to 8
 - ✅ Navigation integration (Screen.AddTransfer)
 
+#### Phase 9: Dashboard & Projections
+- ✅ GetDashboardSummaryUseCase (total balance, unpaid bills, monthly income/expenses)
+- ✅ GetBalanceAfterPaymentsUseCase (projected balance after all pending payments)
+- ✅ DashboardSummary data class with all summary fields
+- ✅ BalanceProjection data class with projection breakdown
+- ✅ DashboardViewModel with month selection
+- ✅ DashboardScreen with comprehensive UI:
+  - ✅ Month selector with navigation (prev/next)
+  - ✅ General balance card (current + projected)
+  - ✅ Monthly overview card (income, expenses, balance)
+  - ✅ Projection details card (breakdown of all factors)
+  - ✅ Accounts carousel (horizontal scroll)
+  - ✅ Upcoming bills section (credit card bills)
+  - ✅ Upcoming recurrences section
+  - ✅ Empty state for new users
+- ✅ Reactive updates with Kotlin Flow
+
 ### 📁 Current Project Structure
 
 ```
@@ -203,7 +222,9 @@ GerenciadorFinanceiro/
 │   │       ├── ConfirmRecurrencePaymentUseCase.kt ✅ Confirm recurrence (with optional account selection)
 │   │       ├── ExecuteTransferUseCase.kt ✅ Execute transfer (create + balance update)
 │   │       ├── CompleteTransferUseCase.kt ✅ Complete pending transfer
-│   │       └── GetMonthlyTransfersUseCase.kt ✅ Get monthly transfers with accounts
+│   │       ├── GetMonthlyTransfersUseCase.kt ✅ Get monthly transfers with accounts
+│   │       ├── GetDashboardSummaryUseCase.kt ✅ Dashboard summary (balance, bills, income/expenses)
+│   │       └── GetBalanceAfterPaymentsUseCase.kt ✅ Balance projection after pending payments
 │   │
 │   ├── di/
 │   │   └── DatabaseModule.kt             ✅ Hilt DI (provides all DAOs including TransferDao)
@@ -211,7 +232,8 @@ GerenciadorFinanceiro/
 │   ├── ui/
 │   │   ├── screens/
 │   │   │   ├── dashboard/
-│   │   │   │   └── DashboardScreen.kt   ✅ Placeholder screen
+│   │   │   │   ├── DashboardScreen.kt    ✅ Full dashboard UI with projections
+│   │   │   │   └── DashboardViewModel.kt ✅ Dashboard ViewModel
 │   │   │   ├── accounts/
 │   │   │   │   ├── AccountsScreen.kt     ✅ List screen
 │   │   │   │   ├── AccountsViewModel.kt  ✅ ViewModel
@@ -2420,14 +2442,18 @@ During development, you can use `.fallbackToDestructiveMigration()` but remove i
 | 6 | CreditCardItem | CreditCardBill, Category | ✅ COMPLETED |
 | 7 | Recurrence | Account, CreditCard, Category | ✅ COMPLETED |
 | 8 | Transfer | Account | ✅ COMPLETED |
-| 9 | Dashboard | All | ⏳ **NEXT** |
-| 10 | Polish | All | ⏳ Pending |
+| 9 | Dashboard | All | ✅ COMPLETED |
+| 10 | Polish | All | ⏳ **NEXT** |
 
-**Current Status:** Phase 8 Complete ✅
-**Next Phase:** Phase 9 - Dashboard & Projections
+**Current Status:** Phase 9 Complete ✅
+**Next Phase:** Phase 10 - Polish & Extras
 **Last Implementation:**
-- Phase 8: Complete transfers system with from/to accounts, optional fees, and integration into TransactionsScreen
-- FAB shows menu dialog to choose between Transaction or Transfer
-- Database version updated to 8
+- Phase 9: Dashboard & Projections with comprehensive UI including:
+  - General balance (current + projected after payments)
+  - Monthly overview (income, expenses, balance)
+  - Projection details breakdown
+  - Accounts carousel
+  - Upcoming bills and recurrences sections
+- Phase 8: Complete transfers system with from/to accounts, optional fees
 
 Each phase builds on the previous, and you can test thoroughly before moving forward.
