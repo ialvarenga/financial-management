@@ -78,6 +78,16 @@ fun MainScreen() {
                         }
                     }
                 )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Repeat, contentDescription = "Recorrências") },
+                    label = { Text("Recorrências") },
+                    selected = currentRoute == Screen.Recurrences.route,
+                    onClick = {
+                        navController.navigate(Screen.Recurrences.route) {
+                            popUpTo(Screen.Dashboard.route)
+                        }
+                    }
+                )
             }
         }
     ) { paddingValues ->

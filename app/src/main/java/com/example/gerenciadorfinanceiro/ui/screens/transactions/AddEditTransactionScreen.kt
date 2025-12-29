@@ -175,12 +175,7 @@ fun AddEditTransactionScreen(
                 onExpandedChange = { expandedPaymentMethod = it }
             ) {
                 OutlinedTextField(
-                    value = when (uiState.paymentMethod) {
-                        PaymentMethod.DEBIT -> "Débito"
-                        PaymentMethod.PIX -> "PIX"
-                        PaymentMethod.TRANSFER -> "Transferência"
-                        PaymentMethod.CREDIT_CARD -> "Cartão de Crédito"
-                    },
+                    value = uiState.paymentMethod.displayName,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Forma de Pagamento") },
@@ -195,16 +190,7 @@ fun AddEditTransactionScreen(
                 ) {
                     PaymentMethod.entries.forEach { method ->
                         DropdownMenuItem(
-                            text = {
-                                Text(
-                                    when (method) {
-                                        PaymentMethod.DEBIT -> "Débito"
-                                        PaymentMethod.PIX -> "PIX"
-                                        PaymentMethod.TRANSFER -> "Transferência"
-                                        PaymentMethod.CREDIT_CARD -> "Cartão de Crédito"
-                                    }
-                                )
-                            },
+                            text = { Text(method.displayName) },
                             onClick = {
                                 viewModel.onPaymentMethodChange(method)
                                 expandedPaymentMethod = false

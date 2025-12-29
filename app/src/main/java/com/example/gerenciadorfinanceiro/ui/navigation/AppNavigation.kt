@@ -15,6 +15,8 @@ import com.example.gerenciadorfinanceiro.ui.screens.creditcards.CreditCardsScree
 import com.example.gerenciadorfinanceiro.ui.screens.creditcards.AddEditCreditCardScreen
 import com.example.gerenciadorfinanceiro.ui.screens.creditcards.CreditCardDetailScreen
 import com.example.gerenciadorfinanceiro.ui.screens.creditcards.AddEditCreditCardItemScreen
+import com.example.gerenciadorfinanceiro.ui.screens.recurrences.RecurrencesScreen
+import com.example.gerenciadorfinanceiro.ui.screens.recurrences.AddEditRecurrenceScreen
 
 sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
@@ -35,6 +37,10 @@ sealed class Screen(val route: String) {
     }
     object AddEditCreditCardItem : Screen("credit_cards/bills/{billId}/items/add_edit?itemId={itemId}") {
         fun createRoute(billId: Long, itemId: Long? = null) = "credit_cards/bills/$billId/items/add_edit?itemId=${itemId ?: -1}"
+    }
+    object Recurrences : Screen("recurrences")
+    object AddEditRecurrence : Screen("recurrences/add_edit?recurrenceId={recurrenceId}") {
+        fun createRoute(recurrenceId: Long? = null) = "recurrences/add_edit?recurrenceId=${recurrenceId ?: -1}"
     }
 
     // Will add more screens later
@@ -144,6 +150,26 @@ fun AppNavigation(navController: NavHostController) {
             )
         ) {
             AddEditCreditCardItemScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Recurrences.route) {
+            RecurrencesScreen(
+                onNavigateToAddEdit = { recurrenceId ->
+                    navController.navigate(Screen.AddEditRecurrence.createRoute(recurrenceId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.AddEditRecurrence.route,
+            arguments = listOf(navArgument("recurrenceId") {
+                type = NavType.StringType
+                defaultValue = "-1"
+            })
+        ) {
+            AddEditRecurrenceScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
