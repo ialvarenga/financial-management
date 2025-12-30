@@ -19,6 +19,8 @@ import com.example.gerenciadorfinanceiro.ui.screens.creditcards.ImportCsvScreen
 import com.example.gerenciadorfinanceiro.ui.screens.recurrences.RecurrencesScreen
 import com.example.gerenciadorfinanceiro.ui.screens.recurrences.AddEditRecurrenceScreen
 import com.example.gerenciadorfinanceiro.ui.screens.transactions.AddTransferScreen
+import com.example.gerenciadorfinanceiro.ui.screens.settings.NotificationSettingsScreen
+import com.example.gerenciadorfinanceiro.ui.screens.settings.NotificationPermissionScreen
 
 sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
@@ -50,6 +52,8 @@ sealed class Screen(val route: String) {
     object AddTransfer : Screen("transactions/add_transfer?transferId={transferId}") {
         fun createRoute(transferId: Long? = null) = "transactions/add_transfer?transferId=${transferId ?: -1}"
     }
+    object NotificationSettings : Screen("notification_settings")
+    object NotificationPermission : Screen("notification_permission")
 
     // Will add more screens later
 }
@@ -209,6 +213,21 @@ fun AppNavigation(navController: NavHostController) {
             })
         ) {
             AddTransferScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.NotificationSettings.route) {
+            NotificationSettingsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToPermission = {
+                    navController.navigate(Screen.NotificationPermission.route)
+                }
+            )
+        }
+
+        composable(Screen.NotificationPermission.route) {
+            NotificationPermissionScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
