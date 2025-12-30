@@ -156,12 +156,6 @@ Contributions are welcome! Please follow these steps:
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
-
-- Built with [Jetpack Compose](https://developer.android.com/jetpack/compose)
-- Icons from [Material Icons](https://fonts.google.com/icons)
-- Inspired by modern financial management principles
-
 ## 📧 Contact
 
 For questions or suggestions, please open an issue on GitHub.
