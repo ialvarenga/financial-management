@@ -53,4 +53,11 @@ class Converters {
 
     @TypeConverter
     fun toPaymentMethod(value: String): PaymentMethod = PaymentMethod.valueOf(value)
+
+    // NotificationSource
+    @TypeConverter
+    fun fromNotificationSource(value: NotificationSource): String = value.name
+
+    @TypeConverter
+    fun toNotificationSource(value: String): NotificationSource = NotificationSource.valueOf(value)
 }
