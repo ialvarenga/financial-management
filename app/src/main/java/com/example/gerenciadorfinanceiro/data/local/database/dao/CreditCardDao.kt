@@ -19,6 +19,9 @@ interface CreditCardDao {
     @Query("SELECT * FROM credit_cards WHERE id = :id")
     fun getByIdFlow(id: Long): Flow<CreditCard?>
 
+    @Query("SELECT * FROM credit_cards WHERE lastFourDigits = :lastFour AND isActive = 1 LIMIT 1")
+    suspend fun getByLastFourDigits(lastFour: String): CreditCard?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(creditCard: CreditCard): Long
 

@@ -18,6 +18,9 @@ class CreditCardRepository @Inject constructor(
 
     suspend fun getById(id: Long): CreditCard? = creditCardDao.getById(id)
 
+    suspend fun getByLastFourDigits(lastFour: String): CreditCard? =
+        creditCardDao.getByLastFourDigits(lastFour)
+
     suspend fun insert(creditCard: CreditCard): Long = creditCardDao.insert(creditCard)
 
     suspend fun update(creditCard: CreditCard) = creditCardDao.update(creditCard)

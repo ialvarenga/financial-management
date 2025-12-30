@@ -16,6 +16,9 @@ interface AccountDao {
     @Query("SELECT * FROM accounts WHERE id = :id")
     suspend fun getById(id: Long): Account?
 
+    @Query("SELECT * FROM accounts WHERE bank = :bank AND isActive = 1 LIMIT 1")
+    suspend fun getFirstByBank(bank: com.example.gerenciadorfinanceiro.domain.model.Bank): Account?
+
     @Query("SELECT COALESCE(SUM(balance), 0) FROM accounts WHERE isActive = 1")
     fun getTotalBalance(): Flow<Long>
 
