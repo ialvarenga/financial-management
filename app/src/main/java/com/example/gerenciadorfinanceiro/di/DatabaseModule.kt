@@ -46,5 +46,8 @@ object DatabaseModule {
 
     @Provides
     fun provideTransferDao(database: AppDatabase) = database.transferDao()
+
+    @Provides
+    fun provideProcessedNotificationDao(database: AppDatabase) = database.processedNotificationDao()
 }
 
