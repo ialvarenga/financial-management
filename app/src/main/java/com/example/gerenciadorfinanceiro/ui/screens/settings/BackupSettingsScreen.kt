@@ -27,6 +27,7 @@ private fun generateFileName(): String {
 @Composable
 fun BackupSettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToNotificationSettings: () -> Unit = {},
     viewModel: BackupSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -123,7 +124,7 @@ fun BackupSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Backup & Restauração") },
+                title = { Text("Configurações") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
@@ -141,6 +142,8 @@ fun BackupSettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            NotificationParserCard(onClick = onNavigateToNotificationSettings)
+
             ExportCard(
                 onExport = { exportLauncher.launch(generateFileName()) },
                 isLoading = uiState.isExporting
@@ -276,6 +279,47 @@ private fun ImportCard(
                 }
                 Text(if (isLoading) "Importando..." else "Importar Backup")
             }
+        }
+    }
+}
+
+@Composable
+private fun NotificationParserCard(
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Notifications,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Notification Parser",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "Auto-create transactions from bank notifications",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

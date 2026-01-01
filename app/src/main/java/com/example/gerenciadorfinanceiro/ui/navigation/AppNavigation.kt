@@ -242,7 +242,10 @@ fun AppNavigation(navController: NavHostController) {
 
         composable(Screen.Settings.route) {
             BackupSettingsScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToNotificationSettings = {
+                    navController.navigate(Screen.NotificationSettings.route)
+                }
             )
         }
 

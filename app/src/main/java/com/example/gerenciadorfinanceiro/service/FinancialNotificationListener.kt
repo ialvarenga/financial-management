@@ -35,6 +35,8 @@ class FinancialNotificationListener : NotificationListenerService() {
 
         serviceScope.launch {
             try {
+                Log.d(TAG, "Notification received from package: $packageName")
+
                 val isEnabled = settingsRepository.isNotificationParsingEnabled().first()
                 if (!isEnabled) {
                     Log.d(TAG, "Notification parsing is disabled")
@@ -43,6 +45,7 @@ class FinancialNotificationListener : NotificationListenerService() {
 
                 val source = NotificationSource.fromPackageName(packageName)
                 if (source == null) {
+                    Log.d(TAG, "Package $packageName is not a recognized source")
                     return@launch
                 }
 
@@ -56,11 +59,13 @@ class FinancialNotificationListener : NotificationListenerService() {
                 val text = notification.extras.getString(Notification.EXTRA_TEXT) ?: ""
                 val timestamp = sbn.postTime
 
-                Log.d(TAG, "Processing notification from ${source.displayName}: $title")
+                Log.d(TAG, "Processing notification from ${source.displayName}")
+                Log.d(TAG, "  Title: $title")
+                Log.d(TAG, "  Text: $text")
 
                 processNotificationUseCase(source, title, text, timestamp)
                     .onSuccess {
-                        Log.d(TAG, "Successfully processed notification from ${source.displayName}")
+                        Log.i(TAG, "Successfully processed notification from ${source.displayName}")
                     }
                     .onFailure { e ->
                         Log.e(TAG, "Failed to process notification from ${source.displayName}: ${e.message}")
