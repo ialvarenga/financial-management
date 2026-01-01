@@ -1,6 +1,7 @@
 package com.example.gerenciadorfinanceiro.ui.screens.transactions
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -206,15 +207,58 @@ fun AddTransferScreen(
                 )
             }
 
-            // Date
+            // Date with DatePicker
+            var showDatePicker by remember { mutableStateOf(false) }
             OutlinedTextField(
                 value = uiState.date.format(dateFormatter),
                 onValueChange = {},
                 label = { Text("Data") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker = true },
                 readOnly = true,
-                leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) }
+                enabled = false,
+                leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
+
+            if (showDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("Cancelar")
+                        }
+                    }
+                ) {
+                    val datePickerState = rememberDatePickerState(
+                        initialSelectedDateMillis = uiState.date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    )
+                    DatePicker(
+                        state = datePickerState,
+                        title = { Text("Selecione a data", modifier = Modifier.padding(16.dp)) }
+                    )
+
+                    LaunchedEffect(datePickerState.selectedDateMillis) {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val selectedDate = java.time.Instant.ofEpochMilli(millis)
+                                .atZone(java.time.ZoneId.systemDefault())
+                                .toLocalDate()
+                            viewModel.onDateChange(selectedDate)
+                        }
+                    }
+                }
+            }
 
             // Notes
             OutlinedTextField(
