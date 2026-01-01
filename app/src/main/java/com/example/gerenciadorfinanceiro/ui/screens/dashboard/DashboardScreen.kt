@@ -31,6 +31,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    onNavigateToRecurrences: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -127,11 +128,20 @@ fun DashboardScreen(
                 // Upcoming Recurrences Section
                 if (uiState.projectedRecurrences.isNotEmpty()) {
                     item {
-                        Text(
-                            text = "Próximas Recorrências",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Próximas Recorrências",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            TextButton(onClick = onNavigateToRecurrences) {
+                                Text("Ver Todas")
+                            }
+                        }
                     }
                     items(
                         uiState.projectedRecurrences
