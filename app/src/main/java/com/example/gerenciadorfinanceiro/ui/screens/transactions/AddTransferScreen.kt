@@ -1,5 +1,6 @@
 package com.example.gerenciadorfinanceiro.ui.screens.transactions
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -8,6 +9,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
@@ -83,7 +85,15 @@ fun AddTransferScreen(
                     readOnly = true,
                     label = { Text("Conta de Origem") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFromAccount) },
-                    leadingIcon = { Icon(Icons.Default.ArrowUpward, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                    leadingIcon = {
+                        uiState.fromAccount?.bank?.iconResId?.let { iconRes ->
+                            Image(
+                                painter = painterResource(id = iconRes),
+                                contentDescription = uiState.fromAccount?.bank?.displayName,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } ?: Icon(Icons.Default.ArrowUpward, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor(),
@@ -96,6 +106,15 @@ fun AddTransferScreen(
                     uiState.accounts.forEach { account ->
                         DropdownMenuItem(
                             text = { Text("${account.name} (${account.bank.displayName})") },
+                            leadingIcon = {
+                                account.bank.iconResId?.let { iconRes ->
+                                    Image(
+                                        painter = painterResource(id = iconRes),
+                                        contentDescription = account.bank.displayName,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            },
                             onClick = {
                                 viewModel.onFromAccountChange(account)
                                 expandedFromAccount = false
@@ -118,7 +137,15 @@ fun AddTransferScreen(
                     readOnly = true,
                     label = { Text("Conta de Destino") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedToAccount) },
-                    leadingIcon = { Icon(Icons.Default.ArrowDownward, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    leadingIcon = {
+                        uiState.toAccount?.bank?.iconResId?.let { iconRes ->
+                            Image(
+                                painter = painterResource(id = iconRes),
+                                contentDescription = uiState.toAccount?.bank?.displayName,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } ?: Icon(Icons.Default.ArrowDownward, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor(),
@@ -131,6 +158,15 @@ fun AddTransferScreen(
                     uiState.accounts.forEach { account ->
                         DropdownMenuItem(
                             text = { Text("${account.name} (${account.bank.displayName})") },
+                            leadingIcon = {
+                                account.bank.iconResId?.let { iconRes ->
+                                    Image(
+                                        painter = painterResource(id = iconRes),
+                                        contentDescription = account.bank.displayName,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            },
                             onClick = {
                                 viewModel.onToAccountChange(account)
                                 expandedToAccount = false

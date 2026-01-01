@@ -1,5 +1,6 @@
 package com.example.gerenciadorfinanceiro.ui.screens.transactions
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -8,6 +9,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.Category
@@ -108,6 +110,15 @@ fun AddEditTransactionScreen(
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Conta") },
+                    leadingIcon = {
+                        uiState.selectedAccount?.bank?.iconResId?.let { iconRes ->
+                            Image(
+                                painter = painterResource(id = iconRes),
+                                contentDescription = uiState.selectedAccount?.bank?.displayName,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAccount) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -121,6 +132,15 @@ fun AddEditTransactionScreen(
                     uiState.accounts.forEach { account ->
                         DropdownMenuItem(
                             text = { Text("${account.name} (${account.bank.displayName})") },
+                            leadingIcon = {
+                                account.bank.iconResId?.let { iconRes ->
+                                    Image(
+                                        painter = painterResource(id = iconRes),
+                                        contentDescription = account.bank.displayName,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            },
                             onClick = {
                                 viewModel.onAccountChange(account)
                                 expandedAccount = false

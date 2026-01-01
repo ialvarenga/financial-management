@@ -1,5 +1,6 @@
 package com.example.gerenciadorfinanceiro.ui.screens.creditcards
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -9,6 +10,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -93,6 +95,15 @@ fun AddEditCreditCardScreen(
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Banco") },
+                    leadingIcon = {
+                        uiState.bank.iconResId?.let { iconRes ->
+                            Image(
+                                painter = painterResource(id = iconRes),
+                                contentDescription = uiState.bank.displayName,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showBankDropdown) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -103,9 +114,18 @@ fun AddEditCreditCardScreen(
                     expanded = showBankDropdown,
                     onDismissRequest = { showBankDropdown = false }
                 ) {
-                    Bank.values().forEach { bank ->
+                    Bank.entries.forEach { bank ->
                         DropdownMenuItem(
                             text = { Text(bank.displayName) },
+                            leadingIcon = {
+                                bank.iconResId?.let { iconRes ->
+                                    Image(
+                                        painter = painterResource(id = iconRes),
+                                        contentDescription = bank.displayName,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            },
                             onClick = {
                                 viewModel.onBankChange(bank)
                                 showBankDropdown = false

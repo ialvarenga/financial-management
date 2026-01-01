@@ -1,5 +1,6 @@
 package com.example.gerenciadorfinanceiro.ui.screens.creditcards
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCard
@@ -138,7 +140,14 @@ fun CreditCardItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
+                    // Display bank icon if available, otherwise show generic credit card icon
+                    card.bank.iconResId?.let { iconRes ->
+                        Image(
+                            painter = painterResource(id = iconRes),
+                            contentDescription = card.bank.displayName,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    } ?: Icon(
                         Icons.Default.CreditCard,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
