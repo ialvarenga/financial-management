@@ -42,17 +42,13 @@ class CreditCardDetailViewModel @Inject constructor(
 
     val uiState: StateFlow<CreditCardDetailUiState> = combine(
         creditCardRepository.getByIdFlow(cardId),
-        billRepository.getBillsByCard(cardId)
-    ) { card, bills ->
+        billRepository.getBillsByCard(cardId),
+        itemRepository.getTotalUnpaidItemsByCard(cardId)
+    ) { card, bills, usedLimit ->
         val now = LocalDate.now()
         val currentBill = bills.firstOrNull {
             it.month == now.monthValue && it.year == now.year
         }
-
-        // Calculate used limit from unpaid bills (OPEN, CLOSED, OVERDUE)
-        val usedLimit = bills
-            .filter { it.status != BillStatus.PAID }
-            .sumOf { it.totalAmount }
 
         // Calculate available limit
         val availableLimit = (card?.creditLimit ?: 0) - usedLimit

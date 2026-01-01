@@ -44,4 +44,7 @@ class CreditCardItemRepository @Inject constructor(
 
     suspend fun deleteByInstallmentGroup(groupId: String) =
         itemDao.deleteByInstallmentGroup(groupId)
+
+    fun getTotalUnpaidItemsByCard(creditCardId: Long): Flow<Long> =
+        itemDao.getTotalUnpaidItemsByCard(creditCardId)
 }
