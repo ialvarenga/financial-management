@@ -1,20 +1,20 @@
 # Gerenciador Financeiro 💰
 
-A modern Android financial management application built with Jetpack Compose and Clean Architecture principles.
+A modern Android financial management application built with Jetpack Compose and Clean Architecture principles, designed for the Brazilian market.
 
 ## 📋 Overview
 
-Gerenciador Financeiro is a comprehensive personal finance management app that helps users track their income, expenses, and financial goals. Built entirely with modern Android development tools and following best practices.
+Gerenciador Financeiro is a comprehensive personal finance management app that helps users track their income, expenses, bank accounts, and credit cards. Built entirely with modern Android development tools and following best practices, it supports 23+ Brazilian banks and multiple payment methods including PIX.
 
 ## ✨ Features
 
-- **Transaction Management**: Track income and expenses with categories and tags
-- **Financial Goals**: Set and monitor savings goals with progress tracking
-- **Bank Account Integration**: Manage multiple bank accounts and track balances
-- **Budget Planning**: Create monthly budgets and monitor spending
-- **Analytics & Reports**: Visualize spending patterns with charts and summaries
-- **Recurring Transactions**: Automate regular income and expenses
-- **Multi-Category Support**: Organize transactions with customizable categories
+- **Transaction Management**: Track income and expenses with 25+ categories
+- **Bank Account Integration**: Manage multiple accounts with support for 23+ Brazilian banks
+- **Credit Card Management**: Track cards, bills, installments, and due dates with CSV import
+- **Transfers**: Transfer money between accounts with optional fee tracking
+- **Recurring Transactions**: Automate regular income and expenses with flexible frequencies
+- **Dashboard**: Comprehensive overview with balance projection and upcoming payments
+- **Multiple Payment Methods**: Debit, Credit, PIX, Transfer, Cash, Boleto
 - **Dark Mode**: Full dark theme support
 
 ## 🏗️ Architecture
@@ -27,16 +27,15 @@ app/
 │   ├── local/         # Room database, DAOs, entities
 │   └── repository/    # Repository implementations
 ├── domain/            # Business logic layer
-│   ├── model/         # Domain models
-│   ├── repository/    # Repository interfaces
-│   └── usecase/       # Business use cases
+│   ├── model/         # Domain models and enums
+│   ├── usecase/       # Business use cases
+│   └── notification/  # Notification handling
 ├── ui/                # Presentation layer
-│   ├── components/    # Reusable UI components
-│   ├── navigation/    # Navigation graph
 │   ├── screens/       # Feature screens
-│   ├── theme/         # Material Design theme
-│   └── viewmodel/     # ViewModels
+│   ├── navigation/    # Navigation graph
+│   └── theme/         # Material Design theme
 ├── di/                # Dependency injection
+├── service/           # Background services
 └── util/              # Utilities and helpers
 ```
 
@@ -108,21 +107,23 @@ Or use Android Studio:
 
 ### Key Modules
 
+- **Dashboard Module**: Financial summary with balance projection and upcoming payments
 - **Transaction Module**: Income/expense tracking with categories
-- **Goal Module**: Financial goal setting and progress tracking
-- **Account Module**: Bank account management
-- **Budget Module**: Monthly budget planning
-- **Analytics Module**: Reports and visualizations
+- **Account Module**: Bank account management with balance tracking
+- **Credit Card Module**: Card management with bills and installments
+- **Recurrence Module**: Automated recurring transactions
+- **Transfer Module**: Money transfers between accounts
 
 ### Database Schema
 
 The app uses Room for local storage with the following main entities:
-- `TransactionEntity` - Financial transactions
-- `GoalEntity` - Savings goals
-- `CategoryEntity` - Transaction categories
-- `BankAccountEntity` - Bank accounts
-- `BudgetEntity` - Budget plans
-- `RecurringTransactionEntity` - Automated transactions
+- `Transaction` - Financial transactions
+- `Account` - Bank accounts with balance
+- `CreditCard` - Credit cards with limit and payment info
+- `CreditCardBill` - Monthly credit card bills
+- `CreditCardItem` - Individual items on credit card bills
+- `Recurrence` - Recurring transactions
+- `Transfer` - Money transfers between accounts
 
 ## 🧪 Testing
 
