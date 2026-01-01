@@ -20,6 +20,7 @@ data class AddEditAccountUiState(
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
+    val isDeleted: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -125,6 +126,22 @@ class AddEditAccountViewModel @Inject constructor(
             }
 
             _uiState.update { it.copy(isLoading = false, isSaved = true) }
+        }
+    }
+
+    fun delete() {
+        if (!_uiState.value.isEditing) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            val account = accountRepository.getById(accountId)
+            if (account != null) {
+                accountRepository.delete(account)
+                _uiState.update { it.copy(isLoading = false, isDeleted = true) }
+            } else {
+                _uiState.update { it.copy(isLoading = false, errorMessage = "Conta não encontrada") }
+            }
         }
     }
 
