@@ -6,8 +6,10 @@ import com.example.gerenciadorfinanceiro.data.local.entity.Account
 import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
 import com.example.gerenciadorfinanceiro.domain.model.ProjectedRecurrence
 import com.example.gerenciadorfinanceiro.domain.usecase.BalanceProjection
+import com.example.gerenciadorfinanceiro.domain.usecase.DashboardData
 import com.example.gerenciadorfinanceiro.domain.usecase.DashboardSummary
 import com.example.gerenciadorfinanceiro.domain.usecase.GetBalanceAfterPaymentsUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.GetDashboardDataUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetDashboardSummaryUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyExpensesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +21,7 @@ import javax.inject.Inject
 data class DashboardUiState(
     val summary: DashboardSummary = DashboardSummary(),
     val projection: BalanceProjection = BalanceProjection(),
+    val dashboardData: DashboardData = DashboardData(),
     val accounts: List<Account> = emptyList(),
     val projectedRecurrences: List<ProjectedRecurrence> = emptyList(),
     val selectedMonth: Int = LocalDate.now().monthValue,
@@ -32,6 +35,7 @@ class DashboardViewModel @Inject constructor(
     private val getDashboardSummaryUseCase: GetDashboardSummaryUseCase,
     private val getBalanceAfterPaymentsUseCase: GetBalanceAfterPaymentsUseCase,
     private val getMonthlyExpensesUseCase: GetMonthlyExpensesUseCase,
+    private val getDashboardDataUseCase: GetDashboardDataUseCase,
     private val accountRepository: AccountRepository
 ) : ViewModel() {
 
@@ -48,11 +52,13 @@ class DashboardViewModel @Inject constructor(
             getDashboardSummaryUseCase(month, year),
             getBalanceAfterPaymentsUseCase(month, year),
             accountRepository.getActiveAccounts(),
-            getMonthlyExpensesUseCase(month, year)
-        ) { summary, projection, accounts, projectedRecurrences ->
+            getMonthlyExpensesUseCase(month, year),
+            getDashboardDataUseCase(month, year)
+        ) { summary, projection, accounts, projectedRecurrences, dashboardData ->
             DashboardUiState(
                 summary = summary,
                 projection = projection,
+                dashboardData = dashboardData,
                 accounts = accounts,
                 projectedRecurrences = projectedRecurrences,
                 selectedMonth = month,
