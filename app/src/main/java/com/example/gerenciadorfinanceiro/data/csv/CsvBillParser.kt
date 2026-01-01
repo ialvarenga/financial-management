@@ -98,7 +98,7 @@ class CsvBillParser @Inject constructor() {
             if (line.isBlank()) continue
 
             try {
-                val parts = parseCsvLine(line, ',')
+                val parts = parse3FieldCsvLine(line, ',')
                 if (parts.size < 3) continue
 
                 val date = parseDate(parts[0].trim())
@@ -335,7 +335,7 @@ class CsvBillParser @Inject constructor() {
                 val parts = if (line.contains(";")) {
                     line.split(";")
                 } else {
-                    parseCsvLine(line, ',')
+                    parse3FieldCsvLine(line, ',')
                 }
 
                 if (parts.size < 3) continue
@@ -399,6 +399,33 @@ class CsvBillParser @Inject constructor() {
         result.add(current.toString())
 
         return result
+    }
+
+    /**
+     * Parse a CSV line for 3-field format (date, description, amount)
+     * Handles cases where description contains commas but isn't quoted
+     */
+    private fun parse3FieldCsvLine(line: String, delimiter: Char): List<String> {
+        // First try standard parsing (handles quoted fields)
+        val standardParts = parseCsvLine(line, delimiter)
+
+        // If we got exactly 3 parts, use them as-is
+        if (standardParts.size == 3) {
+            return standardParts
+        }
+
+        // If we got more than 3 parts, assume unquoted description with commas
+        // Format: date,description (with commas),amount
+        if (standardParts.size > 3) {
+            val date = standardParts[0]
+            val amount = standardParts.last()
+            // Join all middle parts as description
+            val description = standardParts.subList(1, standardParts.size - 1).joinToString(delimiter.toString())
+            return listOf(date, description, amount)
+        }
+
+        // Less than 3 parts, return as-is (will fail validation)
+        return standardParts
     }
 
     private fun parseDate(dateStr: String): LocalDate {
