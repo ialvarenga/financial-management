@@ -130,17 +130,17 @@ class GetMonthlyExpensesUseCase @Inject constructor(
         recurrenceStart: LocalDate,
         recurrenceEnd: LocalDate?
     ): List<ProjectedRecurrence> {
-        // Monthly recurrence: check if this month is in range
-        if (monthStart.isBefore(recurrenceStart) || (recurrenceEnd != null && monthEnd.isAfter(recurrenceEnd))) {
-            return emptyList()
-        }
-
         // Use the day of month from recurrence, but clamp to valid days in this month
         val dayOfMonth = minOf(recurrence.dayOfMonth, monthStart.lengthOfMonth())
         val projectedDate = monthStart.withDayOfMonth(dayOfMonth)
 
-        // Check if the projected date is within the recurrence period
-        if (projectedDate.isBefore(recurrenceStart) || (recurrenceEnd != null && projectedDate.isAfter(recurrenceEnd))) {
+        // Check if the projected date is within the recurrence period:
+        // - Must be on or after the recurrence start date
+        // - Must be on or before the recurrence end date (if it exists)
+        if (projectedDate.isBefore(recurrenceStart)) {
+            return emptyList()
+        }
+        if (recurrenceEnd != null && projectedDate.isAfter(recurrenceEnd)) {
             return emptyList()
         }
 
@@ -165,13 +165,19 @@ class GetMonthlyExpensesUseCase @Inject constructor(
             return emptyList()
         }
 
-        if (monthStart.year < recurrenceStart.year || (recurrenceEnd != null && monthStart.year > recurrenceEnd.year)) {
-            return emptyList()
-        }
-
-        // Use the day of month from recurrence
+        // Use the day of month from recurrence, but clamp to valid days in this month
         val dayOfMonth = minOf(recurrence.dayOfMonth, monthStart.lengthOfMonth())
         val projectedDate = monthStart.withDayOfMonth(dayOfMonth)
+
+        // Check if the projected date is within the recurrence period:
+        // - Must be on or after the recurrence start date
+        // - Must be on or before the recurrence end date (if it exists)
+        if (projectedDate.isBefore(recurrenceStart)) {
+            return emptyList()
+        }
+        if (recurrenceEnd != null && projectedDate.isAfter(recurrenceEnd)) {
+            return emptyList()
+        }
 
         return listOf(
             ProjectedRecurrence(
