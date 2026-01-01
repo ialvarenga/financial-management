@@ -32,6 +32,9 @@ interface CreditCardBillDao {
     @Query("SELECT * FROM credit_card_bills WHERE status IN ('OPEN', 'CLOSED') ORDER BY dueDate ASC")
     fun getUnpaidBills(): Flow<List<CreditCardBill>>
 
+    @Query("SELECT * FROM credit_card_bills WHERE status IN ('OPEN', 'CLOSED') AND dueDate >= :startDate AND dueDate <= :endDate ORDER BY dueDate ASC")
+    fun getUnpaidBillsInDateRange(startDate: Long, endDate: Long): Flow<List<CreditCardBill>>
+
     @Query("SELECT COALESCE(SUM(totalAmount), 0) FROM credit_card_bills WHERE status IN ('OPEN', 'CLOSED')")
     fun getTotalUnpaidAmount(): Flow<Long>
 
