@@ -1,30 +1,20 @@
 package com.example.gerenciadorfinanceiro.domain.model
 
-enum class Bank(val displayName: String) {
-    NUBANK("Nubank"),
-    INTER("Inter"),
-    ITAU("Itaú"),
-    BRADESCO("Bradesco"),
-    SANTANDER("Santander"),
-    BANCO_DO_BRASIL("Banco do Brasil"),
-    CAIXA("Caixa"),
-    C6("C6 Bank"),
-    BTG("BTG Pactual"),
-    NEON("Neon"),
-    PICPAY("PicPay"),
-    MERCADO_PAGO("Mercado Pago"),
-    PAGBANK("PagBank"),
-    SICOOB("Sicoob"),
-    SICREDI("Sicredi"),
-    XP("XP"),
-    RICO("Rico"),
-    CLEAR("Clear"),
-    MODAL("Modal"),
-    SOFISA("Sofisa"),
-    NEXT("Next"),
-    DIGIO("Digio"),
-    WILL("Will Bank"),
-    OTHER("Outro");
+import androidx.annotation.DrawableRes
+import com.example.gerenciadorfinanceiro.R
+
+enum class Bank(
+    val displayName: String,
+    @DrawableRes val iconResId: Int?
+) {
+    NUBANK("Nubank", R.drawable.nubank),
+    ITAU("Itaú", R.drawable.itau),
+    BRADESCO("Bradesco", R.drawable.bradesco),
+    SANTANDER("Santander", R.drawable.santander),
+    BANCO_DO_BRASIL("Banco do Brasil", R.drawable.banco_do_brasil),
+    CAIXA("Caixa", R.drawable.caixa),
+    PICPAY("PicPay", R.drawable.picpay),
+    OTHER("Outro", null);
 
     companion object {
         fun fromName(name: String): Bank = entries.find { it.name == name } ?: OTHER
