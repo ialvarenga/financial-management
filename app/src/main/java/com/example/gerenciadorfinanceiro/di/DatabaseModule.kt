@@ -2,7 +2,10 @@ package com.example.gerenciadorfinanceiro.di
 
 import android.content.Context
 import androidx.room.Room
+import com.example.gerenciadorfinanceiro.data.backup.BackupFileService
+import com.example.gerenciadorfinanceiro.data.backup.GsonConfig
 import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
+import com.google.gson.Gson
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -49,5 +52,16 @@ object DatabaseModule {
 
     @Provides
     fun provideProcessedNotificationDao(database: AppDatabase) = database.processedNotificationDao()
+
+    @Provides
+    @Singleton
+    fun provideGson(): Gson = GsonConfig.createGson()
+
+    @Provides
+    @Singleton
+    fun provideBackupFileService(
+        @ApplicationContext context: Context,
+        gson: Gson
+    ): BackupFileService = BackupFileService(context, gson)
 }
 

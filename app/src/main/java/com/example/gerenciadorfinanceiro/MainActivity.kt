@@ -69,21 +69,11 @@ fun MainScreen() {
                     }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.CreditCard, contentDescription = "Cartões") },
-                    label = { Text("Cartões") },
-                    selected = currentRoute == Screen.CreditCards.route,
+                    icon = { Icon(Icons.Default.MoreHoriz, contentDescription = "Mais") },
+                    label = { Text("Mais") },
+                    selected = currentRoute == Screen.Mais.route,
                     onClick = {
-                        navController.navigate(Screen.CreditCards.route) {
-                            popUpTo(Screen.Dashboard.route)
-                        }
-                    }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Default.Repeat, contentDescription = "Recorrências") },
-                    label = { Text("Recorrências") },
-                    selected = currentRoute == Screen.Recurrences.route,
-                    onClick = {
-                        navController.navigate(Screen.Recurrences.route) {
+                        navController.navigate(Screen.Mais.route) {
                             popUpTo(Screen.Dashboard.route)
                         }
                     }

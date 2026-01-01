@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CreditCardItemDao {
 
+    @Query("SELECT * FROM credit_card_items ORDER BY purchaseDate DESC, id DESC")
+    fun getAll(): Flow<List<CreditCardItem>>
+
     @Query("SELECT * FROM credit_card_items WHERE creditCardBillId = :billId ORDER BY purchaseDate DESC, id DESC")
     fun getItemsByBill(billId: Long): Flow<List<CreditCardItem>>
 

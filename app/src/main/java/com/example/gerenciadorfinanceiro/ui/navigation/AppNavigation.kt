@@ -21,6 +21,8 @@ import com.example.gerenciadorfinanceiro.ui.screens.recurrences.AddEditRecurrenc
 import com.example.gerenciadorfinanceiro.ui.screens.transactions.AddTransferScreen
 import com.example.gerenciadorfinanceiro.ui.screens.settings.NotificationSettingsScreen
 import com.example.gerenciadorfinanceiro.ui.screens.settings.NotificationPermissionScreen
+import com.example.gerenciadorfinanceiro.ui.screens.settings.BackupSettingsScreen
+import com.example.gerenciadorfinanceiro.ui.screens.mais.MaisScreen
 
 sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard")
@@ -54,6 +56,8 @@ sealed class Screen(val route: String) {
     }
     object NotificationSettings : Screen("notification_settings")
     object NotificationPermission : Screen("notification_permission")
+    object Settings : Screen("settings")
+    object Mais : Screen("mais")
 
     // Will add more screens later
 }
@@ -65,7 +69,11 @@ fun AppNavigation(navController: NavHostController) {
         startDestination = Screen.Dashboard.route
     ) {
         composable(Screen.Dashboard.route) {
-            DashboardScreen()
+            DashboardScreen(
+                onNavigateToRecurrences = {
+                    navController.navigate(Screen.Recurrences.route)
+                }
+            )
         }
 
         composable(Screen.Accounts.route) {
@@ -229,6 +237,26 @@ fun AppNavigation(navController: NavHostController) {
         composable(Screen.NotificationPermission.route) {
             NotificationPermissionScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Settings.route) {
+            BackupSettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.Mais.route) {
+            MaisScreen(
+                onNavigateToCreditCards = {
+                    navController.navigate(Screen.CreditCards.route)
+                },
+                onNavigateToRecurrences = {
+                    navController.navigate(Screen.Recurrences.route)
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
+                }
             )
         }
 
