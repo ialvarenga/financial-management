@@ -33,7 +33,7 @@ class GetBalanceAfterPaymentsUseCase @Inject constructor(
      * - Current account balances
      * - Pending transactions (not yet completed)
      * - Projected recurrences for the month
-     * - Unpaid credit card bills
+     * - Unpaid credit card bills due within the selected month
      *
      * @param month The month (1-12)
      * @param year The year
@@ -46,7 +46,7 @@ class GetBalanceAfterPaymentsUseCase @Inject constructor(
             accountRepository.getTotalBalance(),
             transactionRepository.getByDateRangeAndStatus(startDate, endDate, TransactionStatus.PENDING),
             getMonthlyExpensesUseCase(month, year),
-            creditCardBillRepository.getUnpaidBills()
+            creditCardBillRepository.getUnpaidBillsInDateRange(startDate, endDate)
         ) { totalBalance, pendingTransactions, projectedRecurrences, unpaidBills ->
 
             val pendingIncome = pendingTransactions

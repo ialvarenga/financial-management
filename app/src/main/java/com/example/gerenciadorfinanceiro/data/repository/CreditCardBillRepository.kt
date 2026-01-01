@@ -29,6 +29,9 @@ class CreditCardBillRepository @Inject constructor(
 
     fun getUnpaidBills(): Flow<List<CreditCardBill>> = billDao.getUnpaidBills()
 
+    fun getUnpaidBillsInDateRange(startDate: Long, endDate: Long): Flow<List<CreditCardBill>> =
+        billDao.getUnpaidBillsInDateRange(startDate, endDate)
+
     fun getTotalUnpaidAmount(): Flow<Long> = billDao.getTotalUnpaidAmount()
 
     suspend fun insert(bill: CreditCardBill): Long = billDao.insert(bill)
