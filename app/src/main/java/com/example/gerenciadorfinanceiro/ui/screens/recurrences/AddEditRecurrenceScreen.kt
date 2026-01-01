@@ -1,10 +1,12 @@
 package com.example.gerenciadorfinanceiro.ui.screens.recurrences
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -345,13 +347,57 @@ fun AddEditRecurrenceScreen(
             }
 
             // Start date
+            var showStartDatePicker by remember { mutableStateOf(false) }
             OutlinedTextField(
                 value = uiState.startDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("pt", "BR"))),
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Data de início") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showStartDatePicker = true },
+                enabled = false,
+                leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
+
+            if (showStartDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showStartDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = { showStartDatePicker = false }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showStartDatePicker = false }) {
+                            Text("Cancelar")
+                        }
+                    }
+                ) {
+                    val datePickerState = rememberDatePickerState(
+                        initialSelectedDateMillis = uiState.startDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    )
+                    DatePicker(
+                        state = datePickerState,
+                        title = { Text("Selecione a data de início", modifier = Modifier.padding(16.dp)) }
+                    )
+
+                    LaunchedEffect(datePickerState.selectedDateMillis) {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val selectedDate = java.time.Instant.ofEpochMilli(millis)
+                                .atZone(java.time.ZoneId.systemDefault())
+                                .toLocalDate()
+                            viewModel.onStartDateChange(selectedDate)
+                        }
+                    }
+                }
+            }
 
             // Has end date checkbox
             Row(
@@ -370,13 +416,58 @@ fun AddEditRecurrenceScreen(
 
             // End date (if has end date)
             if (uiState.hasEndDate) {
+                var showEndDatePicker by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     value = uiState.endDate?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("pt", "BR"))) ?: "",
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Data de término") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showEndDatePicker = true },
+                    enabled = false,
+                    leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
+
+                if (showEndDatePicker) {
+                    DatePickerDialog(
+                        onDismissRequest = { showEndDatePicker = false },
+                        confirmButton = {
+                            TextButton(onClick = { showEndDatePicker = false }) {
+                                Text("OK")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showEndDatePicker = false }) {
+                                Text("Cancelar")
+                            }
+                        }
+                    ) {
+                        val datePickerState = rememberDatePickerState(
+                            initialSelectedDateMillis = (uiState.endDate ?: uiState.startDate)
+                                .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        )
+                        DatePicker(
+                            state = datePickerState,
+                            title = { Text("Selecione a data de término", modifier = Modifier.padding(16.dp)) }
+                        )
+
+                        LaunchedEffect(datePickerState.selectedDateMillis) {
+                            datePickerState.selectedDateMillis?.let { millis ->
+                                val selectedDate = java.time.Instant.ofEpochMilli(millis)
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .toLocalDate()
+                                viewModel.onEndDateChange(selectedDate)
+                            }
+                        }
+                    }
+                }
             }
 
             // Notes
