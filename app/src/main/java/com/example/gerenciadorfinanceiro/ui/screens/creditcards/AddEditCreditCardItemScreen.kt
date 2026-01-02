@@ -2,12 +2,14 @@ package com.example.gerenciadorfinanceiro.ui.screens.creditcards
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.Category
@@ -85,7 +87,8 @@ fun AddEditCreditCardItemScreen(
                 isError = uiState.errorMessage?.contains("Valor") == true,
                 leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
                 singleLine = true,
-                placeholder = { Text("0,00") }
+                placeholder = { Text("0,00") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
             )
 
             // Category Dropdown
