@@ -363,6 +363,129 @@ fun TransactionsScreen(
             }
         )
     }
+
+    // Month/Year picker dialog
+    if (showMonthPicker) {
+        MonthYearPickerDialog(
+            selectedMonth = uiState.selectedMonth,
+            selectedYear = uiState.selectedYear,
+            onDismiss = { showMonthPicker = false },
+            onConfirm = { month, year ->
+                viewModel.selectMonth(month)
+                viewModel.selectYear(year)
+                showMonthPicker = false
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MonthYearPickerDialog(
+    selectedMonth: Int,
+    selectedYear: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (month: Int, year: Int) -> Unit
+) {
+    var tempMonth by remember { mutableStateOf(selectedMonth) }
+    var tempYear by remember { mutableStateOf(selectedYear) }
+
+    val months = listOf(
+        1 to "Janeiro", 2 to "Fevereiro", 3 to "Março",
+        4 to "Abril", 5 to "Maio", 6 to "Junho",
+        7 to "Julho", 8 to "Agosto", 9 to "Setembro",
+        10 to "Outubro", 11 to "Novembro", 12 to "Dezembro"
+    )
+
+    val currentYear = LocalDate.now().year
+    val years = (currentYear - 5..currentYear + 1).toList()
+
+    var expandedMonth by remember { mutableStateOf(false) }
+    var expandedYear by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Selecionar período") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Month selector
+                ExposedDropdownMenuBox(
+                    expanded = expandedMonth,
+                    onExpandedChange = { expandedMonth = it }
+                ) {
+                    OutlinedTextField(
+                        value = months.first { it.first == tempMonth }.second,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Mês") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMonth) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedMonth,
+                        onDismissRequest = { expandedMonth = false }
+                    ) {
+                        months.forEach { (monthValue, monthName) ->
+                            DropdownMenuItem(
+                                text = { Text(monthName) },
+                                onClick = {
+                                    tempMonth = monthValue
+                                    expandedMonth = false
+                                },
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                            )
+                        }
+                    }
+                }
+
+                // Year selector
+                ExposedDropdownMenuBox(
+                    expanded = expandedYear,
+                    onExpandedChange = { expandedYear = it }
+                ) {
+                    OutlinedTextField(
+                        value = tempYear.toString(),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Ano") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedYear) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedYear,
+                        onDismissRequest = { expandedYear = false }
+                    ) {
+                        years.reversed().forEach { year ->
+                            DropdownMenuItem(
+                                text = { Text(year.toString()) },
+                                onClick = {
+                                    tempYear = year
+                                    expandedYear = false
+                                },
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(tempMonth, tempYear) }) {
+                Text("Confirmar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 @Composable
