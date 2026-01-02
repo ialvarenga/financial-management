@@ -21,6 +21,8 @@ class AccountRepository @Inject constructor(
 
     suspend fun getFirstByBank(bank: Bank): Account? = accountDao.getFirstByBank(bank)
 
+    suspend fun getMostUsedByBank(bank: Bank): Account? = accountDao.getMostUsedByBank(bank)
+
     suspend fun insert(account: Account): Long = accountDao.insert(account)
 
     suspend fun update(account: Account) = accountDao.update(account)

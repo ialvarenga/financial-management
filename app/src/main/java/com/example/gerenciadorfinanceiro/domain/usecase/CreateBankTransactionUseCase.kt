@@ -22,8 +22,13 @@ class CreateBankTransactionUseCase @Inject constructor(
             else -> throw IllegalArgumentException("Invalid source for bank transaction: ${parsed.source}")
         }
 
-        val account = accountRepository.getFirstByBank(bank)
-            ?: throw IllegalStateException("No active account found for ${bank.displayName}")
+        // For Nubank, prefer the account with most transactions (likely the main account)
+        // For other banks, use the first account
+        val account = if (bank == Bank.NUBANK) {
+            accountRepository.getMostUsedByBank(bank) ?: accountRepository.getFirstByBank(bank)
+        } else {
+            accountRepository.getFirstByBank(bank)
+        } ?: throw IllegalStateException("No active account found for ${bank.displayName}")
 
         val transaction = Transaction(
             accountId = account.id,

@@ -11,6 +11,7 @@ import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.usecase.AddCreditCardItemUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.CreateInstallmentPurchaseUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetOrCreateBillUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.UpdateCreditCardItemUseCase
 import com.example.gerenciadorfinanceiro.util.toCents
 import com.example.gerenciadorfinanceiro.util.toReais
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,6 +38,7 @@ class AddEditCreditCardItemViewModel @Inject constructor(
     private val billRepository: CreditCardBillRepository,
     private val itemRepository: CreditCardItemRepository,
     private val addItemUseCase: AddCreditCardItemUseCase,
+    private val updateItemUseCase: UpdateCreditCardItemUseCase,
     private val createInstallmentPurchaseUseCase: CreateInstallmentPurchaseUseCase,
     private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
     savedStateHandle: SavedStateHandle
@@ -167,7 +169,7 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                             amount = amountInCents,
                             category = currentState.category
                         )
-                        itemRepository.update(updatedItem)
+                        updateItemUseCase(updatedItem)
                     }
                 } else {
                     // Create new item(s)
