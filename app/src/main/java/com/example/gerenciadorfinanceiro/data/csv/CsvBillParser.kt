@@ -5,6 +5,8 @@ import com.example.gerenciadorfinanceiro.domain.model.CsvBillItem
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -457,11 +459,19 @@ class CsvBillParser @Inject constructor() {
             .replace(" ", "")
             .trim()
 
-        val value = cleanAmount.toDoubleOrNull()
-            ?: throw IllegalArgumentException("Valor inválido: $amountStr")
+        // Use BigDecimal for exact decimal arithmetic
+        val value = try {
+            BigDecimal(cleanAmount)
+        } catch (e: NumberFormatException) {
+            throw IllegalArgumentException("Valor inválido: $amountStr")
+        }
 
         // Convert to cents and ensure it's positive
-        return (kotlin.math.abs(value) * 100).toLong()
+        val cents = value.abs()
+            .multiply(BigDecimal("100"))
+            .setScale(0, RoundingMode.HALF_UP)
+
+        return cents.toLong()
     }
 
     private fun parseInstallments(description: String): Pair<Int, Int> {

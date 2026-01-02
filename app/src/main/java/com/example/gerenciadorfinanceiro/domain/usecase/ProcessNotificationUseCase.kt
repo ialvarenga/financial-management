@@ -10,7 +10,8 @@ class ProcessNotificationUseCase @Inject constructor(
     private val parsers: Set<@JvmSuppressWildcards NotificationParser>,
     private val processedNotificationRepository: ProcessedNotificationRepository,
     private val createBankTransactionUseCase: CreateBankTransactionUseCase,
-    private val createWalletPurchaseUseCase: CreateWalletPurchaseUseCase
+    private val createWalletPurchaseUseCase: CreateWalletPurchaseUseCase,
+    private val createCreditCardPurchaseUseCase: CreateCreditCardPurchaseUseCase
 ) {
     suspend operator fun invoke(
         source: NotificationSource,
@@ -32,13 +33,19 @@ class ProcessNotificationUseCase @Inject constructor(
                 return Result.success(Unit)
             }
 
-            val processedNotification = when (source) {
-                NotificationSource.ITAU, NotificationSource.NUBANK -> {
-                    createBankTransactionUseCase(parsed, notificationKey)
-                }
-                NotificationSource.GOOGLE_WALLET -> {
+            val processedNotification = when {
+                source == NotificationSource.GOOGLE_WALLET -> {
                     createWalletPurchaseUseCase(parsed, notificationKey)
                 }
+                parsed.lastFourDigits != null -> {
+                    // Credit card purchase
+                    createCreditCardPurchaseUseCase(parsed, notificationKey)
+                }
+                source == NotificationSource.ITAU || source == NotificationSource.NUBANK -> {
+                    // Bank transaction (PIX, debit, etc.)
+                    createBankTransactionUseCase(parsed, notificationKey)
+                }
+                else -> throw IllegalArgumentException("Unsupported notification source: $source")
             }
 
             processedNotificationRepository.insert(processedNotification)
