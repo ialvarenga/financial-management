@@ -729,13 +729,14 @@ fun DashboardBoxes(
                     Column {
                         Text(
                             text = "Saldo Projetado",
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = healthStatus.label,
                             style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
                             color = healthStatus.color
                         )
                     }
@@ -744,7 +745,7 @@ fun DashboardBoxes(
                 // Right side: Value
                 Text(
                     text = projectedBalance.toReais(),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = healthStatus.color
                 )
