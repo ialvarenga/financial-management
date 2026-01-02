@@ -72,6 +72,15 @@ fun AppNavigation(navController: NavHostController) {
             DashboardScreen(
                 onNavigateToRecurrences = {
                     navController.navigate(Screen.Recurrences.route)
+                },
+                onNavigateToAddTransaction = {
+                    navController.navigate(Screen.AddEditTransaction.createRoute())
+                },
+                onNavigateToAccounts = {
+                    navController.navigate(Screen.Accounts.route)
+                },
+                onNavigateToCreditCards = {
+                    navController.navigate(Screen.CreditCards.route)
                 }
             )
         }
