@@ -166,6 +166,9 @@ fun AppNavigation(navController: NavHostController) {
                 onNavigateToAddItem = { billId ->
                     navController.navigate(Screen.AddEditCreditCardItem.createRoute(billId))
                 },
+                onNavigateToEditItem = { billId, itemId ->
+                    navController.navigate(Screen.AddEditCreditCardItem.createRoute(billId, itemId))
+                },
                 onNavigateToImportCsv = {
                     navController.navigate(Screen.ImportCsv.createRoute(cardId))
                 }

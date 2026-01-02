@@ -23,6 +23,7 @@ data class CreditCardDetailUiState(
     val currentBill: CreditCardBill? = null,
     val currentBillItems: List<CreditCardItem> = emptyList(),
     val billHistory: List<CreditCardBill> = emptyList(),
+    val billItems: Map<Long, List<CreditCardItem>> = emptyMap(),  // Map of bill ID to items
     val usedLimit: Long = 0,  // Total of unpaid bills (in cents)
     val availableLimit: Long = 0,  // creditLimit - usedLimit (in cents)
     val isLoading: Boolean = true
@@ -58,14 +59,28 @@ class CreditCardDetailViewModel @Inject constructor(
             currentBill = currentBill,
             currentBillItems = emptyList(),
             billHistory = bills,
+            billItems = emptyMap(),
             usedLimit = usedLimit,
             availableLimit = availableLimit.coerceAtLeast(0),
             isLoading = false
         )
     }.flatMapLatest { state ->
-        if (state.currentBill != null) {
-            itemRepository.getItemsByBill(state.currentBill.id).map { items ->
-                state.copy(currentBillItems = items)
+        // Load items for all bills
+        val billItemFlows = state.billHistory.map { bill ->
+            itemRepository.getItemsByBill(bill.id).map { items ->
+                bill.id to items
+            }
+        }
+
+        if (billItemFlows.isNotEmpty()) {
+            combine(billItemFlows) { billItemPairs ->
+                val billItemsMap = billItemPairs.toMap()
+                val currentBillItems = state.currentBill?.let { billItemsMap[it.id] } ?: emptyList()
+
+                state.copy(
+                    currentBillItems = currentBillItems,
+                    billItems = billItemsMap
+                )
             }
         } else {
             flowOf(state)

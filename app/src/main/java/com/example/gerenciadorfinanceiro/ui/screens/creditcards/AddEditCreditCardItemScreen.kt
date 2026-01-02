@@ -31,7 +31,7 @@ fun AddEditCreditCardItemScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Adicionar Item") },
+                title = { Text(if (uiState.isEditing) "Editar Item" else "Adicionar Item") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
@@ -124,50 +124,67 @@ fun AddEditCreditCardItemScreen(
             }
 
             // Installments Selector
-            Text("Parcelas", style = MaterialTheme.typography.titleSmall)
-            var expandedInstallments by remember { mutableStateOf(false) }
-            ExposedDropdownMenuBox(
-                expanded = expandedInstallments,
-                onExpandedChange = { expandedInstallments = it }
-            ) {
-                OutlinedTextField(
-                    value = if (uiState.installments == 1) {
-                        "À vista"
-                    } else {
-                        "${uiState.installments}x"
-                    },
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Número de parcelas") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedInstallments) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor()
-                )
-                ExposedDropdownMenu(
+            val canEditInstallments = !uiState.isEditing || uiState.installments == 1
+
+            if (canEditInstallments) {
+                Text("Parcelas", style = MaterialTheme.typography.titleSmall)
+                var expandedInstallments by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
                     expanded = expandedInstallments,
-                    onDismissRequest = { expandedInstallments = false }
+                    onExpandedChange = { expandedInstallments = it }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("À vista") },
-                        onClick = {
-                            viewModel.onInstallmentsChange(1)
-                            expandedInstallments = false
-                        }
+                    OutlinedTextField(
+                        value = if (uiState.installments == 1) {
+                            "À vista"
+                        } else {
+                            "${uiState.installments}x"
+                        },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Número de parcelas") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedInstallments) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
                     )
-                    (2..12).forEach { installments ->
+                    ExposedDropdownMenu(
+                        expanded = expandedInstallments,
+                        onDismissRequest = { expandedInstallments = false }
+                    ) {
                         DropdownMenuItem(
-                            text = { Text("${installments}x") },
+                            text = { Text("À vista") },
                             onClick = {
-                                viewModel.onInstallmentsChange(installments)
+                                viewModel.onInstallmentsChange(1)
                                 expandedInstallments = false
                             }
                         )
+                        (2..12).forEach { installments ->
+                            DropdownMenuItem(
+                                text = { Text("${installments}x") },
+                                onClick = {
+                                    viewModel.onInstallmentsChange(installments)
+                                    expandedInstallments = false
+                                }
+                            )
+                        }
                     }
                 }
+            } else {
+                // Show read-only installment info for items in installment groups
+                OutlinedTextField(
+                    value = "Parcela ${uiState.editingItem?.installmentNumber}/${uiState.installments}",
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = false,
+                    label = { Text("Parcelas (não editável)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = {
+                        Text("Este item faz parte de uma compra parcelada. Para alterar, exclua todas as parcelas e crie novamente.")
+                    }
+                )
             }
 
-            if (uiState.installments > 1) {
+            if (uiState.installments > 1 && !uiState.isEditing) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -222,7 +239,7 @@ fun AddEditCreditCardItemScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
-                    Text("Adicionar")
+                    Text(if (uiState.isEditing) "Salvar" else "Adicionar")
                 }
             }
         }

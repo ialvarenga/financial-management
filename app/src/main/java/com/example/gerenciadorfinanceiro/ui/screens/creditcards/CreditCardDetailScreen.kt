@@ -26,12 +26,14 @@ fun CreditCardDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: () -> Unit,
     onNavigateToAddItem: (Long) -> Unit,
+    onNavigateToEditItem: (Long, Long) -> Unit,
     onNavigateToImportCsv: () -> Unit,
     viewModel: CreditCardDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<CreditCardItem?>(null) }
+    var expandedBillIds by remember { mutableStateOf(setOf<Long>()) }
 
     Scaffold(
         topBar = {
@@ -275,6 +277,7 @@ fun CreditCardDetailScreen(
                         ) { item ->
                             CreditCardItemCard(
                                 item = item,
+                                onEdit = { onNavigateToEditItem(item.creditCardBillId, item.id) },
                                 onDelete = { itemToDelete = item }
                             )
                         }
@@ -310,7 +313,58 @@ fun CreditCardDetailScreen(
                     }
                 } else {
                     items(uiState.billHistory) { bill ->
-                        BillCard(bill = bill)
+                        val isExpanded = expandedBillIds.contains(bill.id)
+                        val billItems = uiState.billItems[bill.id] ?: emptyList()
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            BillCard(
+                                bill = bill,
+                                isExpanded = isExpanded,
+                                onClick = {
+                                    expandedBillIds = if (isExpanded) {
+                                        expandedBillIds - bill.id
+                                    } else {
+                                        expandedBillIds + bill.id
+                                    }
+                                }
+                            )
+
+                            // Show items when expanded
+                            if (isExpanded) {
+                                if (billItems.isEmpty()) {
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Nenhum item nesta fatura",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    billItems.forEach { item ->
+                                        Box(modifier = Modifier.padding(start = 16.dp)) {
+                                            CreditCardItemCard(
+                                                item = item,
+                                                onEdit = { onNavigateToEditItem(item.creditCardBillId, item.id) },
+                                                onDelete = { itemToDelete = item }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -373,7 +427,11 @@ fun CreditCardDetailScreen(
 }
 
 @Composable
-fun BillCard(bill: CreditCardBill) {
+fun BillCard(
+    bill: CreditCardBill,
+    isExpanded: Boolean = false,
+    onClick: (() -> Unit)? = null
+) {
     val formatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("pt", "BR"))
     val monthYear = Instant.ofEpochMilli(bill.closingDate)
         .atZone(ZoneId.systemDefault())
@@ -381,7 +439,8 @@ fun BillCard(bill: CreditCardBill) {
         .replaceFirstChar { it.uppercase() }
 
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        onClick = { onClick?.invoke() }
     ) {
         Column(
             modifier = Modifier
@@ -398,7 +457,19 @@ fun BillCard(bill: CreditCardBill) {
                     text = monthYear,
                     style = MaterialTheme.typography.titleMedium
                 )
-                BillStatusChip(status = bill.status)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    BillStatusChip(status = bill.status)
+                    if (onClick != null) {
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (isExpanded) "Recolher" else "Expandir",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             Divider()
@@ -461,6 +532,7 @@ fun BillStatusChip(status: BillStatus) {
 @Composable
 fun CreditCardItemCard(
     item: CreditCardItem,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -521,6 +593,13 @@ fun CreditCardItemCard(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.error
                 )
+                IconButton(onClick = onEdit) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Editar",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
                 IconButton(onClick = onDelete) {
                     Icon(
                         Icons.Default.Delete,

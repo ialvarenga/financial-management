@@ -6,11 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardBill
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepository
+import com.example.gerenciadorfinanceiro.data.repository.CreditCardItemRepository
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.usecase.AddCreditCardItemUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.CreateInstallmentPurchaseUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetOrCreateBillUseCase
 import com.example.gerenciadorfinanceiro.util.toCents
+import com.example.gerenciadorfinanceiro.util.toReais
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -25,12 +27,15 @@ data class AddEditCreditCardItemUiState(
     val availableCategories: List<Category> = Category.expenses(),
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isEditing: Boolean = false,
+    val editingItem: CreditCardItem? = null
 )
 
 @HiltViewModel
 class AddEditCreditCardItemViewModel @Inject constructor(
     private val billRepository: CreditCardBillRepository,
+    private val itemRepository: CreditCardItemRepository,
     private val addItemUseCase: AddCreditCardItemUseCase,
     private val createInstallmentPurchaseUseCase: CreateInstallmentPurchaseUseCase,
     private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
@@ -38,13 +43,45 @@ class AddEditCreditCardItemViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val billId: Long = savedStateHandle.get<String>("billId")?.toLongOrNull() ?: -1
+    private val itemId: Long = savedStateHandle.get<String>("itemId")?.toLongOrNull() ?: -1
 
     private val _uiState = MutableStateFlow(AddEditCreditCardItemUiState())
     val uiState: StateFlow<AddEditCreditCardItemUiState> = _uiState.asStateFlow()
 
     init {
-        if (billId > 0) {
+        if (itemId > 0) {
+            loadItem()
+        } else if (billId > 0) {
             loadBill()
+        }
+    }
+
+    private fun loadItem() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val item = itemRepository.getById(itemId)
+            if (item != null) {
+                val bill = billRepository.getById(item.creditCardBillId)
+                _uiState.update {
+                    it.copy(
+                        description = item.description,
+                        amount = item.amount.toReais().replace("R$ ", "").replace(".", ""),
+                        category = item.category,
+                        installments = item.totalInstallments,
+                        bill = bill,
+                        isEditing = true,
+                        editingItem = item,
+                        isLoading = false
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        errorMessage = "Item não encontrado",
+                        isLoading = false
+                    )
+                }
+            }
         }
     }
 
@@ -99,46 +136,82 @@ class AddEditCreditCardItemViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
 
             try {
-                // Determine starting bill based on current bill status
-                val startDate = if (bill.status == com.example.gerenciadorfinanceiro.domain.model.BillStatus.OPEN) {
-                    // Bill is open, start from current month
-                    java.time.LocalDate.of(bill.year, bill.month, 1)
-                } else {
-                    // Bill is closed, start from next month
-                    java.time.LocalDate.of(bill.year, bill.month, 1).plusMonths(1)
-                }
+                if (currentState.isEditing && currentState.editingItem != null) {
+                    val originalItem = currentState.editingItem
 
-                if (currentState.installments == 1) {
-                    // Single item - get or create the appropriate bill
-                    val targetBill = getOrCreateBillUseCase(
-                        bill.creditCardId,
-                        startDate.monthValue,
-                        startDate.year
-                    )
+                    // Check if user is converting a single item to installments
+                    if (originalItem.totalInstallments == 1 && currentState.installments > 1) {
+                        // Delete the original item
+                        itemRepository.delete(originalItem)
 
-                    val item = CreditCardItem(
-                        creditCardBillId = targetBill.id,
-                        category = currentState.category,
-                        description = currentState.description.trim(),
-                        amount = amountInCents,
-                        purchaseDate = System.currentTimeMillis(),
-                        installmentNumber = 1,
-                        totalInstallments = 1,
-                        installmentGroupId = null
-                    )
-                    addItemUseCase(item)
+                        // Create installment purchases
+                        val startDate = java.time.LocalDate.of(bill.year, bill.month, 1)
+                        createInstallmentPurchaseUseCase(
+                            creditCardId = bill.creditCardId,
+                            description = currentState.description.trim(),
+                            totalAmount = amountInCents,
+                            category = currentState.category,
+                            purchaseDate = originalItem.purchaseDate,
+                            numberOfInstallments = currentState.installments,
+                            startMonth = startDate.monthValue,
+                            startYear = startDate.year
+                        )
+
+                        // Update bill total for the original bill
+                        val newTotal = itemRepository.getTotalAmountByBill(bill.id)
+                        billRepository.updateTotalAmount(bill.id, newTotal)
+                    } else {
+                        // Simple update (no installment conversion)
+                        val updatedItem = originalItem.copy(
+                            description = currentState.description.trim(),
+                            amount = amountInCents,
+                            category = currentState.category
+                        )
+                        itemRepository.update(updatedItem)
+                    }
                 } else {
-                    // Installment purchase
-                    createInstallmentPurchaseUseCase(
-                        creditCardId = bill.creditCardId,
-                        description = currentState.description.trim(),
-                        totalAmount = amountInCents,
-                        category = currentState.category,
-                        purchaseDate = System.currentTimeMillis(),
-                        numberOfInstallments = currentState.installments,
-                        startMonth = startDate.monthValue,
-                        startYear = startDate.year
-                    )
+                    // Create new item(s)
+                    // Determine starting bill based on current bill status
+                    val startDate = if (bill.status == com.example.gerenciadorfinanceiro.domain.model.BillStatus.OPEN) {
+                        // Bill is open, start from current month
+                        java.time.LocalDate.of(bill.year, bill.month, 1)
+                    } else {
+                        // Bill is closed, start from next month
+                        java.time.LocalDate.of(bill.year, bill.month, 1).plusMonths(1)
+                    }
+
+                    if (currentState.installments == 1) {
+                        // Single item - get or create the appropriate bill
+                        val targetBill = getOrCreateBillUseCase(
+                            bill.creditCardId,
+                            startDate.monthValue,
+                            startDate.year
+                        )
+
+                        val item = CreditCardItem(
+                            creditCardBillId = targetBill.id,
+                            category = currentState.category,
+                            description = currentState.description.trim(),
+                            amount = amountInCents,
+                            purchaseDate = System.currentTimeMillis(),
+                            installmentNumber = 1,
+                            totalInstallments = 1,
+                            installmentGroupId = null
+                        )
+                        addItemUseCase(item)
+                    } else {
+                        // Installment purchase
+                        createInstallmentPurchaseUseCase(
+                            creditCardId = bill.creditCardId,
+                            description = currentState.description.trim(),
+                            totalAmount = amountInCents,
+                            category = currentState.category,
+                            purchaseDate = System.currentTimeMillis(),
+                            numberOfInstallments = currentState.installments,
+                            startMonth = startDate.monthValue,
+                            startYear = startDate.year
+                        )
+                    }
                 }
 
                 _uiState.update { it.copy(isLoading = false, isSaved = true) }
