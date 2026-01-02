@@ -72,7 +72,7 @@ class TransactionsViewModel @Inject constructor(
                 .sumOf { it.transaction.amount }
 
             val totalExpense = transactions
-                .filter { it.transaction.type == TransactionType.EXPENSE }
+                .filter { it.transaction.type == TransactionType.EXPENSE && it.transaction.status == com.example.gerenciadorfinanceiro.domain.model.TransactionStatus.COMPLETED }
                 .sumOf { it.transaction.amount }
 
             TransactionsUiState(
