@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -11,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
@@ -71,7 +73,8 @@ fun AddTransferScreen(
                 isError = uiState.errorMessage?.contains("Valor") == true,
                 leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
                 singleLine = true,
-                placeholder = { Text("0,00") }
+                placeholder = { Text("0,00") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
             )
 
             // From Account Dropdown
@@ -187,7 +190,8 @@ fun AddTransferScreen(
                 leadingIcon = { Icon(Icons.Default.Payments, contentDescription = null) },
                 singleLine = true,
                 placeholder = { Text("0,00") },
-                supportingText = { Text("Taxa cobrada pela transferência (descontada da conta de origem)") }
+                supportingText = { Text("Taxa cobrada pela transferência (descontada da conta de origem)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
             )
 
             // Status Toggle
