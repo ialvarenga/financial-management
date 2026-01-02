@@ -71,21 +71,21 @@ private fun MenuOptionCard(
     icon: ImageVector,
     onClick: () -> Unit
 ) {
-    Card(
+    Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(vertical = 12.dp, horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
             Column(
@@ -93,9 +93,8 @@ private fun MenuOptionCard(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.bodyLarge
                 )
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
@@ -105,6 +104,7 @@ private fun MenuOptionCard(
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
+                modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
