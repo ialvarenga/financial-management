@@ -106,13 +106,17 @@ class CsvBillParser @Inject constructor() {
                 val amountStr = parts[2].trim().replace(",", ".").replace("\"", "")
                 val amount = parseAmount(amountStr)
 
+                val (installmentNumber, totalInstallments) = parseInstallments(description)
+
                 if (amount > 0) { // Only include expenses (negative values become positive)
                     items.add(
                         CsvBillItem(
                             date = date,
                             description = description,
                             amount = amount,
-                            category = detectCategory(description)
+                            category = detectCategory(description),
+                            installmentNumber = installmentNumber,
+                            totalInstallments = totalInstallments
                         )
                     )
                 }
@@ -141,13 +145,17 @@ class CsvBillParser @Inject constructor() {
                 val amountStr = parts[2].trim().replace(".", "").replace(",", ".")
                 val amount = parseAmount(amountStr)
 
+                val (installmentNumber, totalInstallments) = parseInstallments(description)
+
                 if (amount > 0) {
                     items.add(
                         CsvBillItem(
                             date = date,
                             description = description,
                             amount = amount,
-                            category = detectCategory(description)
+                            category = detectCategory(description),
+                            installmentNumber = installmentNumber,
+                            totalInstallments = totalInstallments
                         )
                     )
                 }

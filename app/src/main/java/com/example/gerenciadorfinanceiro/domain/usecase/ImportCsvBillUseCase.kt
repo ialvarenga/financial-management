@@ -84,6 +84,9 @@ class ImportCsvBillUseCase @Inject constructor(
                 null
             }
 
+            // Log installment info for debugging
+            android.util.Log.d("ImportCSV", "Item: ${csvItem.description}, Installment: ${csvItem.installmentNumber}/${csvItem.totalInstallments}")
+
             // Create item for the current bill
             val currentItem = CreditCardItem(
                 creditCardBillId = currentBill.id,
@@ -103,6 +106,7 @@ class ImportCsvBillUseCase @Inject constructor(
             if (csvItem.totalInstallments > 1 && csvItem.installmentNumber < csvItem.totalInstallments) {
                 val remainingInstallments = csvItem.totalInstallments - csvItem.installmentNumber
                 val baseDate = LocalDate.of(year, month, 1)
+                android.util.Log.d("ImportCSV", "Creating $remainingInstallments future installments")
 
                 for (i in 1..remainingInstallments) {
                     val futureInstallmentNumber = csvItem.installmentNumber + i
@@ -115,6 +119,7 @@ class ImportCsvBillUseCase @Inject constructor(
                         futureDate.year
                     )
                     affectedBillIds.add(futureBill.id)
+                    android.util.Log.d("ImportCSV", "Created installment $futureInstallmentNumber in ${futureDate.monthValue}/${futureDate.year}")
 
                     // Update description to show correct installment number
                     val futureDescription = updateInstallmentDescription(
