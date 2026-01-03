@@ -8,12 +8,12 @@ import com.example.gerenciadorfinanceiro.domain.model.ProjectedRecurrence
 import com.example.gerenciadorfinanceiro.domain.usecase.CompleteTransactionUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.CompleteTransferUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.ConfirmRecurrencePaymentUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.DeleteTransferUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyExpensesUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyTransactionsUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyTransfersUseCase
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import com.example.gerenciadorfinanceiro.data.repository.TransactionRepository
-import com.example.gerenciadorfinanceiro.data.repository.TransferRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -41,8 +41,8 @@ class TransactionsViewModel @Inject constructor(
     private val completeTransactionUseCase: CompleteTransactionUseCase,
     private val completeTransferUseCase: CompleteTransferUseCase,
     private val confirmRecurrencePaymentUseCase: ConfirmRecurrencePaymentUseCase,
-    private val transactionRepository: TransactionRepository,
-    private val transferRepository: TransferRepository
+    private val deleteTransferUseCase: DeleteTransferUseCase,
+    private val transactionRepository: TransactionRepository
 ) : ViewModel() {
 
     private val _selectedMonth = MutableStateFlow(LocalDate.now().monthValue)
@@ -114,7 +114,7 @@ class TransactionsViewModel @Inject constructor(
 
     fun deleteTransfer(transferId: Long) {
         viewModelScope.launch {
-            transferRepository.deleteById(transferId)
+            deleteTransferUseCase(transferId)
         }
     }
 
