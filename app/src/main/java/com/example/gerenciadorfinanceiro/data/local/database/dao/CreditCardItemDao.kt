@@ -76,4 +76,13 @@ interface CreditCardItemDao {
         GROUP BY items.category
     """)
     fun getCategoryTotalsForMonth(month: Int, year: Int): Flow<List<CreditCardCategoryTotal>>
+
+    @Query("""
+        SELECT items.recurrenceId
+        FROM credit_card_items items
+        INNER JOIN credit_card_bills bills ON items.creditCardBillId = bills.id
+        WHERE items.recurrenceId IS NOT NULL
+        AND bills.month = :month AND bills.year = :year
+    """)
+    fun getConfirmedRecurrenceIdsForMonth(month: Int, year: Int): Flow<List<Long>>
 }

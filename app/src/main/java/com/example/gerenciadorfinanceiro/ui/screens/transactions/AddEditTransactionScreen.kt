@@ -304,6 +304,50 @@ fun AddEditTransactionScreen(
                 maxLines = 5
             )
 
+            // Recurrence dropdown - to associate transaction with a recurrence
+            var expandedRecurrence by remember { mutableStateOf(false) }
+            val filteredRecurrences = uiState.recurrences.filter { it.type == uiState.type }
+
+            ExposedDropdownMenuBox(
+                expanded = expandedRecurrence,
+                onExpandedChange = { expandedRecurrence = it }
+            ) {
+                OutlinedTextField(
+                    value = uiState.selectedRecurrence?.description ?: "Nenhuma",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Recorrência (opcional)") },
+                    leadingIcon = { Icon(Icons.Default.Repeat, contentDescription = null) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedRecurrence) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedRecurrence,
+                    onDismissRequest = { expandedRecurrence = false }
+                ) {
+                    // Option to remove recurrence association
+                    DropdownMenuItem(
+                        text = { Text("Nenhuma") },
+                        onClick = {
+                            viewModel.onRecurrenceChange(null)
+                            expandedRecurrence = false
+                        }
+                    )
+                    // Show filtered recurrences (same type as the transaction)
+                    filteredRecurrences.forEach { recurrence ->
+                        DropdownMenuItem(
+                            text = { Text(recurrence.description) },
+                            onClick = {
+                                viewModel.onRecurrenceChange(recurrence)
+                                expandedRecurrence = false
+                            }
+                        )
+                    }
+                }
+            }
+
             // Error message
             if (uiState.errorMessage != null) {
                 Text(

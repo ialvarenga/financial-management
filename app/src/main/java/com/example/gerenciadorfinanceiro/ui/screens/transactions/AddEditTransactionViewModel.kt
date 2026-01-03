@@ -4,14 +4,17 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gerenciadorfinanceiro.data.local.entity.Account
+import com.example.gerenciadorfinanceiro.data.local.entity.Recurrence
 import com.example.gerenciadorfinanceiro.data.local.entity.Transaction
 import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
+import com.example.gerenciadorfinanceiro.data.repository.RecurrenceRepository
 import com.example.gerenciadorfinanceiro.data.repository.TransactionRepository
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import com.example.gerenciadorfinanceiro.domain.usecase.CreateTransactionUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.UpdateTransactionUseCase
 import com.example.gerenciadorfinanceiro.util.toCents
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -31,6 +34,8 @@ data class AddEditTransactionUiState(
     val date: LocalDate = LocalDate.now(),
     val notes: String = "",
     val accounts: List<Account> = emptyList(),
+    val recurrences: List<Recurrence> = emptyList(),
+    val selectedRecurrence: Recurrence? = null,
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
@@ -41,7 +46,9 @@ data class AddEditTransactionUiState(
 class AddEditTransactionViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val accountRepository: AccountRepository,
+    private val recurrenceRepository: RecurrenceRepository,
     private val createTransactionUseCase: CreateTransactionUseCase,
+    private val updateTransactionUseCase: UpdateTransactionUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -52,6 +59,7 @@ class AddEditTransactionViewModel @Inject constructor(
 
     init {
         loadAccounts()
+        loadRecurrences()
         if (transactionId > 0) {
             loadTransaction()
         }
@@ -70,12 +78,24 @@ class AddEditTransactionViewModel @Inject constructor(
         }
     }
 
+    private fun loadRecurrences() {
+        viewModelScope.launch {
+            recurrenceRepository.getActiveRecurrences().collect { recurrences ->
+                _uiState.update { it.copy(recurrences = recurrences) }
+            }
+        }
+    }
+
     private fun loadTransaction() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val transactionWithAccount = transactionRepository.getByIdWithAccount(transactionId)
             if (transactionWithAccount != null) {
                 val transaction = transactionWithAccount.transaction
+                // Load the associated recurrence if it exists
+                val associatedRecurrence = transaction.recurrenceId?.let { recurrenceId ->
+                    recurrenceRepository.getById(recurrenceId)
+                }
                 _uiState.update {
                     it.copy(
                         description = transaction.description,
@@ -87,6 +107,7 @@ class AddEditTransactionViewModel @Inject constructor(
                         status = transaction.status,
                         date = LocalDate.ofEpochDay(transaction.date / (24 * 60 * 60 * 1000)),
                         notes = transaction.notes ?: "",
+                        selectedRecurrence = associatedRecurrence,
                         isEditing = true,
                         isLoading = false
                     )
@@ -143,6 +164,10 @@ class AddEditTransactionViewModel @Inject constructor(
         _uiState.update { it.copy(notes = notes) }
     }
 
+    fun onRecurrenceChange(recurrence: Recurrence?) {
+        _uiState.update { it.copy(selectedRecurrence = recurrence) }
+    }
+
     fun save() {
         val currentState = _uiState.value
 
@@ -182,12 +207,13 @@ class AddEditTransactionViewModel @Inject constructor(
                 status = currentState.status,
                 date = dateMillis,
                 notes = currentState.notes.takeIf { it.isNotBlank() },
+                recurrenceId = currentState.selectedRecurrence?.id,
                 completedAt = if (currentState.status == TransactionStatus.COMPLETED) System.currentTimeMillis() else null
             )
 
             try {
                 if (currentState.isEditing) {
-                    transactionRepository.update(transaction)
+                    updateTransactionUseCase(transaction)
                 } else {
                     createTransactionUseCase(transaction)
                 }

@@ -149,4 +149,25 @@ interface TransactionDao {
     @androidx.room.Transaction
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getByIdWithAccount(id: Long): TransactionWithAccount?
+
+    @Query("""
+        SELECT * FROM transactions
+        WHERE recurrenceId = :recurrenceId
+        AND date BETWEEN :startDate AND :endDate
+    """)
+    fun getByRecurrenceIdAndDateRange(
+        recurrenceId: Long,
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<Transaction>>
+
+    @Query("""
+        SELECT recurrenceId FROM transactions
+        WHERE recurrenceId IS NOT NULL
+        AND date BETWEEN :startDate AND :endDate
+    """)
+    fun getConfirmedRecurrenceIdsForDateRange(
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<Long>>
 }

@@ -51,4 +51,7 @@ class CreditCardItemRepository @Inject constructor(
 
     fun getCategoryTotalsForMonth(month: Int, year: Int): Flow<List<CreditCardCategoryTotal>> =
         itemDao.getCategoryTotalsForMonth(month, year)
+
+    fun getConfirmedRecurrenceIdsForMonth(month: Int, year: Int): Flow<List<Long>> =
+        itemDao.getConfirmedRecurrenceIdsForMonth(month, year)
 }

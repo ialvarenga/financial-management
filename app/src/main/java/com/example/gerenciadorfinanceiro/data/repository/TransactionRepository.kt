@@ -90,4 +90,17 @@ class TransactionRepository @Inject constructor(
 
     suspend fun updateStatus(id: Long, status: TransactionStatus, completedAt: Long? = null) =
         transactionDao.updateStatus(id, status, completedAt)
+
+    fun getByRecurrenceIdAndDateRange(
+        recurrenceId: Long,
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<Transaction>> =
+        transactionDao.getByRecurrenceIdAndDateRange(recurrenceId, startDate, endDate)
+
+    fun getConfirmedRecurrenceIdsForDateRange(
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<Long>> =
+        transactionDao.getConfirmedRecurrenceIdsForDateRange(startDate, endDate)
 }

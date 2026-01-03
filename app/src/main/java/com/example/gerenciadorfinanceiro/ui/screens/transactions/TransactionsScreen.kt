@@ -232,7 +232,7 @@ fun TransactionsScreen(
                         items(uiState.projectedRecurrences, key = { "recurrence_${it.recurrence.id}_${it.projectedDate}" }) { projectedRecurrence ->
                             ProjectedRecurrenceItem(
                                 projectedRecurrence = projectedRecurrence,
-                                accounts = uiState.transactions.map { it.account }.distinctBy { it.id },
+                                accounts = uiState.accounts,
                                 onConfirm = { accountId ->
                                     viewModel.confirmRecurrence(projectedRecurrence, accountId)
                                 }

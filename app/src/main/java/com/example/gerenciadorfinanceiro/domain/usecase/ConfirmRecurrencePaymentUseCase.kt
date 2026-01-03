@@ -33,7 +33,7 @@ class ConfirmRecurrencePaymentUseCase @Inject constructor(
         val accountId = recurrence.accountId ?: selectedAccountId
 
         return if (accountId != null) {
-            // Create account-based transaction
+            // Create account-based transaction (always as PENDING first)
             val transaction = Transaction(
                 description = recurrence.description,
                 amount = recurrence.amount,
@@ -41,7 +41,7 @@ class ConfirmRecurrencePaymentUseCase @Inject constructor(
                 category = recurrence.category,
                 accountId = accountId,
                 paymentMethod = recurrence.paymentMethod,
-                status = if (markAsCompleted) TransactionStatus.COMPLETED else TransactionStatus.PENDING,
+                status = TransactionStatus.PENDING,
                 date = projectedRecurrence.projectedDate,
                 notes = recurrence.notes,
                 recurrenceId = recurrence.id
@@ -49,7 +49,7 @@ class ConfirmRecurrencePaymentUseCase @Inject constructor(
 
             val transactionId = transactionRepository.insert(transaction)
 
-            // If marked as completed, update account balance
+            // If marked as completed, update status and account balance
             if (markAsCompleted) {
                 completeTransactionUseCase(transactionId)
             }

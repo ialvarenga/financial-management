@@ -1,11 +1,14 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
 import com.example.gerenciadorfinanceiro.data.local.entity.Recurrence
+import com.example.gerenciadorfinanceiro.data.repository.CreditCardItemRepository
 import com.example.gerenciadorfinanceiro.data.repository.RecurrenceRepository
+import com.example.gerenciadorfinanceiro.data.repository.TransactionRepository
 import com.example.gerenciadorfinanceiro.domain.model.Frequency
 import com.example.gerenciadorfinanceiro.domain.model.ProjectedRecurrence
 import com.example.gerenciadorfinanceiro.util.getMonthBounds
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.DayOfWeek
 import java.time.Instant
@@ -15,15 +18,18 @@ import java.time.temporal.TemporalAdjusters
 import javax.inject.Inject
 
 class GetMonthlyExpensesUseCase @Inject constructor(
-    private val recurrenceRepository: RecurrenceRepository
+    private val recurrenceRepository: RecurrenceRepository,
+    private val transactionRepository: TransactionRepository,
+    private val creditCardItemRepository: CreditCardItemRepository
 ) {
     /**
      * Gets projected recurrences for a specific month and year
      * @param month The month (1-12)
      * @param year The year
+     * @param excludeConfirmed If true, excludes recurrences that have already been confirmed as transactions/credit card items
      * @return Flow of projected recurrences for the given month
      */
-    operator fun invoke(month: Int, year: Int): Flow<List<ProjectedRecurrence>> {
+    operator fun invoke(month: Int, year: Int, excludeConfirmed: Boolean = false): Flow<List<ProjectedRecurrence>> {
         val (startMillis, endMillis) = getMonthBounds(month, year)
         val startDate = Instant.ofEpochMilli(startMillis)
             .atZone(ZoneId.systemDefault())
@@ -32,10 +38,30 @@ class GetMonthlyExpensesUseCase @Inject constructor(
             .atZone(ZoneId.systemDefault())
             .toLocalDate()
 
-        return recurrenceRepository.getActiveRecurrences().map { recurrences ->
-            recurrences.flatMap { recurrence ->
-                projectRecurrenceForMonth(recurrence, startDate, endDate)
+        if (!excludeConfirmed) {
+            // Return all projected recurrences without filtering
+            return recurrenceRepository.getActiveRecurrences().map { recurrences ->
+                recurrences.flatMap { recurrence ->
+                    projectRecurrenceForMonth(recurrence, startDate, endDate)
+                }
             }
+        }
+
+        // Combine recurrences with confirmed recurrence IDs from both transactions and credit card items
+        return combine(
+            recurrenceRepository.getActiveRecurrences(),
+            transactionRepository.getConfirmedRecurrenceIdsForDateRange(startMillis, endMillis),
+            creditCardItemRepository.getConfirmedRecurrenceIdsForMonth(month, year)
+        ) { recurrences, confirmedTransactionRecurrenceIds, confirmedCreditCardRecurrenceIds ->
+            // Combine all confirmed recurrence IDs
+            val allConfirmedRecurrenceIds = (confirmedTransactionRecurrenceIds + confirmedCreditCardRecurrenceIds).toSet()
+
+            // Filter out recurrences that have already been confirmed
+            recurrences
+                .filter { recurrence -> recurrence.id !in allConfirmedRecurrenceIds }
+                .flatMap { recurrence ->
+                    projectRecurrenceForMonth(recurrence, startDate, endDate)
+                }
         }
     }
 
