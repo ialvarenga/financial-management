@@ -43,7 +43,8 @@ class ConfirmRecurrencePaymentUseCase @Inject constructor(
                 paymentMethod = recurrence.paymentMethod,
                 status = if (markAsCompleted) TransactionStatus.COMPLETED else TransactionStatus.PENDING,
                 date = projectedRecurrence.projectedDate,
-                notes = recurrence.notes
+                notes = recurrence.notes,
+                recurrenceId = recurrence.id
             )
 
             val transactionId = transactionRepository.insert(transaction)
@@ -71,7 +72,8 @@ class ConfirmRecurrencePaymentUseCase @Inject constructor(
                 category = recurrence.category,
                 description = recurrence.description,
                 amount = recurrence.amount,
-                purchaseDate = projectedRecurrence.projectedDate
+                purchaseDate = projectedRecurrence.projectedDate,
+                recurrenceId = recurrence.id
             )
 
             creditCardItemRepository.insert(item)
