@@ -4,9 +4,29 @@ import androidx.room.*
 import com.example.gerenciadorfinanceiro.data.local.entity.Transaction
 import com.example.gerenciadorfinanceiro.data.local.entity.TransactionWithAccount
 import com.example.gerenciadorfinanceiro.domain.model.Category
+import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import kotlinx.coroutines.flow.Flow
+
+data class CategoryTotal(
+    val category: Category,
+    val total: Long,
+    val count: Int
+)
+
+data class PaymentMethodTotal(
+    val paymentMethod: PaymentMethod,
+    val total: Long,
+    val count: Int
+)
+
+data class MonthlyTotal(
+    val month: Int,
+    val year: Int,
+    val income: Long,
+    val expense: Long
+)
 
 @Dao
 interface TransactionDao {
@@ -75,6 +95,32 @@ interface TransactionDao {
         AND status = 'COMPLETED'
     """)
     suspend fun getTotalByAccountAndType(accountId: Long, type: TransactionType): Long
+
+    @Query("""
+        SELECT category, SUM(amount) as total, COUNT(*) as count
+        FROM transactions
+        WHERE date BETWEEN :startDate AND :endDate
+        AND type = :type
+        AND status = 'COMPLETED'
+        GROUP BY category
+    """)
+    fun getCategoryTotals(
+        startDate: Long,
+        endDate: Long,
+        type: TransactionType
+    ): Flow<List<CategoryTotal>>
+
+    @Query("""
+        SELECT paymentMethod, SUM(amount) as total, COUNT(*) as count
+        FROM transactions
+        WHERE date BETWEEN :startDate AND :endDate
+        AND status = 'COMPLETED'
+        GROUP BY paymentMethod
+    """)
+    fun getPaymentMethodTotals(
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<PaymentMethodTotal>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(transaction: Transaction): Long

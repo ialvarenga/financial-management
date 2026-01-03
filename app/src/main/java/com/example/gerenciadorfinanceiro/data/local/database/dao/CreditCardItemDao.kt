@@ -2,7 +2,14 @@ package com.example.gerenciadorfinanceiro.data.local.database.dao
 
 import androidx.room.*
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
+import com.example.gerenciadorfinanceiro.domain.model.Category
 import kotlinx.coroutines.flow.Flow
+
+data class CreditCardCategoryTotal(
+    val category: Category,
+    val total: Long,
+    val count: Int
+)
 
 @Dao
 interface CreditCardItemDao {
@@ -60,4 +67,13 @@ interface CreditCardItemDao {
         AND bills.status != 'PAID'
     """)
     fun getTotalUnpaidItemsByCard(creditCardId: Long): Flow<Long>
+
+    @Query("""
+        SELECT items.category, SUM(items.amount) as total, COUNT(*) as count
+        FROM credit_card_items items
+        INNER JOIN credit_card_bills bills ON items.creditCardBillId = bills.id
+        WHERE bills.month = :month AND bills.year = :year
+        GROUP BY items.category
+    """)
+    fun getCategoryTotalsForMonth(month: Int, year: Int): Flow<List<CreditCardCategoryTotal>>
 }
