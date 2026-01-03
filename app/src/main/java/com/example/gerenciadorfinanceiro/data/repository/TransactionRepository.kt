@@ -1,5 +1,7 @@
 package com.example.gerenciadorfinanceiro.data.repository
 
+import com.example.gerenciadorfinanceiro.data.local.database.dao.CategoryTotal
+import com.example.gerenciadorfinanceiro.data.local.database.dao.PaymentMethodTotal
 import com.example.gerenciadorfinanceiro.data.local.database.dao.TransactionDao
 import com.example.gerenciadorfinanceiro.data.local.entity.Transaction
 import com.example.gerenciadorfinanceiro.data.local.entity.TransactionWithAccount
@@ -64,6 +66,19 @@ class TransactionRepository @Inject constructor(
 
     suspend fun getTotalByAccountAndType(accountId: Long, type: TransactionType): Long =
         transactionDao.getTotalByAccountAndType(accountId, type)
+
+    fun getCategoryTotals(
+        startDate: Long,
+        endDate: Long,
+        type: TransactionType
+    ): Flow<List<CategoryTotal>> =
+        transactionDao.getCategoryTotals(startDate, endDate, type)
+
+    fun getPaymentMethodTotals(
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<PaymentMethodTotal>> =
+        transactionDao.getPaymentMethodTotals(startDate, endDate)
 
     suspend fun insert(transaction: Transaction): Long = transactionDao.insert(transaction)
 

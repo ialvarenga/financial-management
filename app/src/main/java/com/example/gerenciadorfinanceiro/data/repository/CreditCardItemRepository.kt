@@ -1,5 +1,6 @@
 package com.example.gerenciadorfinanceiro.data.repository
 
+import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardCategoryTotal
 import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardItemDao
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import kotlinx.coroutines.flow.Flow
@@ -47,4 +48,7 @@ class CreditCardItemRepository @Inject constructor(
 
     fun getTotalUnpaidItemsByCard(creditCardId: Long): Flow<Long> =
         itemDao.getTotalUnpaidItemsByCard(creditCardId)
+
+    fun getCategoryTotalsForMonth(month: Int, year: Int): Flow<List<CreditCardCategoryTotal>> =
+        itemDao.getCategoryTotalsForMonth(month, year)
 }

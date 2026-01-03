@@ -31,6 +31,7 @@ fun MaisScreen(
     onNavigateToCreditCards: () -> Unit,
     onNavigateToRecurrences: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToAnalytics: () -> Unit = {},
     viewModel: BackupSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -152,6 +153,13 @@ fun MaisScreen(
                 description = "Transações recorrentes e agendamentos",
                 icon = Icons.Default.Repeat,
                 onClick = onNavigateToRecurrences
+            )
+
+            MenuOption(
+                title = "Análises e Gráficos",
+                description = "Visualize suas finanças em gráficos",
+                icon = Icons.Default.Analytics,
+                onClick = onNavigateToAnalytics
             )
 
             MenuOption(
