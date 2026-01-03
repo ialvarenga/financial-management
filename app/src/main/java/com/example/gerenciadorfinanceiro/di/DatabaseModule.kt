@@ -2,6 +2,8 @@ package com.example.gerenciadorfinanceiro.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.gerenciadorfinanceiro.data.backup.BackupFileService
 import com.example.gerenciadorfinanceiro.data.backup.GsonConfig
 import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
@@ -17,6 +19,20 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    private val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add recurrenceId column to transactions table
+            db.execSQL("ALTER TABLE transactions ADD COLUMN recurrenceId INTEGER DEFAULT NULL")
+
+            // Add recurrenceId column to credit_card_items table
+            db.execSQL("ALTER TABLE credit_card_items ADD COLUMN recurrenceId INTEGER DEFAULT NULL")
+
+            // Create indexes for the new columns
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_transactions_recurrenceId ON transactions(recurrenceId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_credit_card_items_recurrenceId ON credit_card_items(recurrenceId)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -25,6 +41,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "financial_app.db"
         )
+        .addMigrations(MIGRATION_9_10)
         .fallbackToDestructiveMigration()  // For development - will use proper migrations in production
         .build()
     }

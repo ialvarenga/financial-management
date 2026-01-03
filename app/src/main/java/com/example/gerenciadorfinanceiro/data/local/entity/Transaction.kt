@@ -17,9 +17,15 @@ import com.example.gerenciadorfinanceiro.domain.model.TransactionType
             parentColumns = ["id"],
             childColumns = ["accountId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Recurrence::class,
+            parentColumns = ["id"],
+            childColumns = ["recurrenceId"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index(value = ["accountId"]), Index(value = ["date"]), Index(value = ["category"])]
+    indices = [Index(value = ["accountId"]), Index(value = ["date"]), Index(value = ["category"]), Index(value = ["recurrenceId"])]
 )
 data class Transaction(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -32,6 +38,7 @@ data class Transaction(
     val status: TransactionStatus = TransactionStatus.PENDING,
     val date: Long,  // transaction date in epoch millis
     val notes: String? = null,
+    val recurrenceId: Long? = null,  // Links to parent recurrence if this transaction was generated from a recurrence
     val createdAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null
 )

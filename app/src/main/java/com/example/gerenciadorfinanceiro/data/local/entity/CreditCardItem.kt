@@ -14,11 +14,18 @@ import com.example.gerenciadorfinanceiro.domain.model.Category
             parentColumns = ["id"],
             childColumns = ["creditCardBillId"],
             onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Recurrence::class,
+            parentColumns = ["id"],
+            childColumns = ["recurrenceId"],
+            onDelete = ForeignKey.SET_NULL
         )
     ],
     indices = [
         Index(value = ["creditCardBillId"]),
-        Index(value = ["installmentGroupId"])
+        Index(value = ["installmentGroupId"]),
+        Index(value = ["recurrenceId"])
     ]
 )
 data class CreditCardItem(
@@ -31,5 +38,6 @@ data class CreditCardItem(
     val installmentNumber: Int = 1,  // Current installment (e.g., 1, 2, 3...)
     val totalInstallments: Int = 1,  // Total number of installments (1 for single purchase)
     val installmentGroupId: String? = null,  // UUID to group installments together
+    val recurrenceId: Long? = null,  // Links to parent recurrence if this item was generated from a recurrence
     val createdAt: Long = System.currentTimeMillis()
 )
