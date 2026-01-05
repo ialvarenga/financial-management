@@ -48,16 +48,21 @@ class AnalyticsViewModel @Inject constructor(
         combine(
             getCategoryAnalyticsUseCase(params.month, params.year, params.filter),
             getTimeSeriesDataUseCase(params.month, params.year, params.timeRange),
-            getPaymentMethodAnalyticsUseCase(params.month, params.year),
+            getPaymentMethodAnalyticsUseCase(params.month, params.year, params.filter),
             getAccountBalanceAnalyticsUseCase(),
             getCreditCardUtilizationUseCase()
         ) { categoryBreakdown, timeSeriesData, paymentMethodBreakdown, accountBreakdown, creditCardUtilization ->
+            // Show/hide sections based on filter type for better data consistency
+            val shouldShowTimeSeries = params.filter == DataSourceFilter.ALL || params.filter == DataSourceFilter.TRANSACTIONS
+            val shouldShowAccountBalance = params.filter == DataSourceFilter.ALL || params.filter == DataSourceFilter.TRANSACTIONS
+            val shouldShowCreditCardUtilization = params.filter == DataSourceFilter.ALL || params.filter == DataSourceFilter.CREDIT_CARDS
+
             AnalyticsUiState(
                 categoryBreakdown = categoryBreakdown,
-                timeSeriesData = timeSeriesData,
+                timeSeriesData = if (shouldShowTimeSeries) timeSeriesData else TimeSeriesData(),
                 paymentMethodBreakdown = paymentMethodBreakdown,
-                accountBreakdown = accountBreakdown,
-                creditCardUtilization = creditCardUtilization,
+                accountBreakdown = if (shouldShowAccountBalance) accountBreakdown else AccountBreakdown(),
+                creditCardUtilization = if (shouldShowCreditCardUtilization) creditCardUtilization else CreditCardUtilizationData(),
                 selectedMonth = params.month,
                 selectedYear = params.year,
                 filterType = params.filter,

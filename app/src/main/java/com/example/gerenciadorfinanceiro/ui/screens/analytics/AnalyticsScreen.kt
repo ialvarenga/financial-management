@@ -85,7 +85,7 @@ fun AnalyticsScreen(
                 }
 
                 if (uiState.categoryBreakdown.expenses.isNotEmpty()) {
-                    item {
+                    item(key = "expenses_${uiState.filterType}_${uiState.categoryBreakdown.expenses.size}") {
                         CategoryDonutChart(
                             title = "Despesas",
                             items = uiState.categoryBreakdown.expenses.take(10),
@@ -95,7 +95,7 @@ fun AnalyticsScreen(
                 }
 
                 if (uiState.categoryBreakdown.income.isNotEmpty()) {
-                    item {
+                    item(key = "income_${uiState.filterType}_${uiState.categoryBreakdown.income.size}") {
                         CategoryDonutChart(
                             title = "Receitas",
                             items = uiState.categoryBreakdown.income.take(10),
@@ -127,7 +127,7 @@ fun AnalyticsScreen(
                     item {
                         SectionHeader("Métodos de Pagamento")
                     }
-                    item {
+                    item(key = "payment_methods_${uiState.filterType}_${uiState.paymentMethodBreakdown.methods.size}") {
                         PaymentMethodDonutChart(
                             methods = uiState.paymentMethodBreakdown.methods,
                             total = uiState.paymentMethodBreakdown.total
