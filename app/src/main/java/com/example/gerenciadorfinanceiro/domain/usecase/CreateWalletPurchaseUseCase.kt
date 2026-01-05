@@ -1,5 +1,6 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import android.util.Log
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.data.local.entity.ProcessedNotification
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardRepository
@@ -19,7 +20,13 @@ class CreateWalletPurchaseUseCase @Inject constructor(
             ?: throw IllegalArgumentException("Missing last four digits for Google Wallet transaction")
 
         val creditCard = creditCardRepository.getByLastFourDigits(lastFour)
-            ?: throw IllegalStateException("No active credit card found with last 4 digits: $lastFour")
+            ?: run {
+                Log.i(TAG, "No credit card found with last 4 digits: $lastFour, creating placeholder")
+                creditCardRepository.createPlaceholderCard(
+                    lastFourDigits = lastFour,
+                    name = "Card ending in $lastFour"
+                )
+            }
 
         val purchaseDate = Instant.ofEpochMilli(parsed.timestamp)
             .atZone(ZoneId.systemDefault())
@@ -47,5 +54,9 @@ class CreateWalletPurchaseUseCase @Inject constructor(
             notificationText = parsed.description,
             createdCreditCardItemId = itemId
         )
+    }
+
+    companion object {
+        private const val TAG = "CreateWalletPurchase"
     }
 }

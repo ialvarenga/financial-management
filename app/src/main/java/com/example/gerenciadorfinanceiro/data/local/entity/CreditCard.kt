@@ -28,5 +28,6 @@ data class CreditCard(
     val dueDay: Int,  // day of month (1-31)
     val paymentAccountId: Long?,  // account used to pay the bill
     val isActive: Boolean = true,
+    val isPlaceholder: Boolean = false,  // indicates if card was auto-created from notification
     val createdAt: Long = System.currentTimeMillis()
 )

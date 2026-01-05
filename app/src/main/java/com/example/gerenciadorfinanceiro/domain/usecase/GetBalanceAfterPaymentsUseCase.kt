@@ -45,7 +45,7 @@ class GetBalanceAfterPaymentsUseCase @Inject constructor(
         return combine(
             accountRepository.getTotalBalance(),
             transactionRepository.getByDateRangeAndStatus(startDate, endDate, TransactionStatus.PENDING),
-            getMonthlyExpensesUseCase(month, year),
+            getMonthlyExpensesUseCase(month, year, excludeConfirmed = true),
             creditCardBillRepository.getUnpaidBillsInDateRange(startDate, endDate)
         ) { totalBalance, pendingTransactions, projectedRecurrences, unpaidBills ->
 

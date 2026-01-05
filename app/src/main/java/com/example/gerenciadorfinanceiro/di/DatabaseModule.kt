@@ -33,6 +33,13 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add isPlaceholder column to credit_cards table
+            db.execSQL("ALTER TABLE credit_cards ADD COLUMN isPlaceholder INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -41,7 +48,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "financial_app.db"
         )
-        .addMigrations(MIGRATION_9_10)
+        .addMigrations(MIGRATION_9_10, MIGRATION_10_11)
         .fallbackToDestructiveMigration()  // For development - will use proper migrations in production
         .build()
     }

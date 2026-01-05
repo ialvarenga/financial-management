@@ -31,7 +31,7 @@ import com.example.gerenciadorfinanceiro.data.local.entity.Transfer
         Transfer::class,
         ProcessedNotification::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
