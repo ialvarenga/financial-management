@@ -35,12 +35,16 @@ class CreditCardDetailViewModel @Inject constructor(
     private val creditCardRepository: CreditCardRepository,
     private val billRepository: CreditCardBillRepository,
     private val itemRepository: CreditCardItemRepository,
+    private val accountRepository: com.example.gerenciadorfinanceiro.data.repository.AccountRepository,
     private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
     private val markBillAsPaidUseCase: com.example.gerenciadorfinanceiro.domain.usecase.MarkBillAsPaidUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val cardId: Long = savedStateHandle.get<String>("cardId")?.toLongOrNull() ?: -1
+
+    // Flow of active accounts for bill payment selection
+    val activeAccounts = accountRepository.getActiveAccounts()
 
     val uiState: StateFlow<CreditCardDetailUiState> = combine(
         creditCardRepository.getByIdFlow(cardId),
@@ -153,9 +157,9 @@ class CreditCardDetailViewModel @Inject constructor(
         }
     }
 
-    fun markBillAsPaid(billId: Long) {
+    fun markBillAsPaid(billId: Long, accountId: Long) {
         viewModelScope.launch {
-            markBillAsPaidUseCase(billId)
+            markBillAsPaidUseCase(billId, accountId)
         }
     }
 }

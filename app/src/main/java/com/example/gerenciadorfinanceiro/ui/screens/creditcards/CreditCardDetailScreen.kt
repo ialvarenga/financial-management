@@ -31,12 +31,14 @@ fun CreditCardDetailScreen(
     viewModel: CreditCardDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val activeAccounts by viewModel.activeAccounts.collectAsState(initial = emptyList())
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<CreditCardItem?>(null) }
     var expandedBillIds by remember { mutableStateOf(setOf<Long>()) }
     var isCurrentBillExpanded by remember { mutableStateOf(false) }
     var showMarkAsPaidDialog by remember { mutableStateOf(false) }
     var billToMarkAsPaid by remember { mutableStateOf<Long?>(null) }
+    var selectedAccountId by remember { mutableStateOf<Long?>(null) }
 
     Scaffold(
         topBar = {
@@ -439,21 +441,88 @@ fun CreditCardDetailScreen(
         )
     }
 
-    // Mark as paid confirmation dialog
+    // Mark as paid confirmation dialog with account selection
     if (showMarkAsPaidDialog) {
+        var expandedAccountDropdown by remember { mutableStateOf(false) }
+
         AlertDialog(
             onDismissRequest = {
                 showMarkAsPaidDialog = false
                 billToMarkAsPaid = null
+                selectedAccountId = null
             },
             title = { Text("Marcar fatura como paga") },
-            text = { Text("Deseja realmente marcar esta fatura como paga? Esta ação não pode ser desfeita.") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("Selecione a conta que será usada para pagar esta fatura:")
+
+                    // Account selector dropdown
+                    ExposedDropdownMenuBox(
+                        expanded = expandedAccountDropdown,
+                        onExpandedChange = { expandedAccountDropdown = it }
+                    ) {
+                        OutlinedTextField(
+                            value = activeAccounts.find { it.id == selectedAccountId }?.name ?: "Selecione uma conta",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Conta") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedAccountDropdown) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor()
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expandedAccountDropdown,
+                            onDismissRequest = { expandedAccountDropdown = false }
+                        ) {
+                            activeAccounts.forEach { account ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(account.name)
+                                            Text(
+                                                text = "${account.bank.displayName} - ${account.balance.toReais()}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        selectedAccountId = account.id
+                                        expandedAccountDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    if (activeAccounts.isEmpty()) {
+                        Text(
+                            text = "Nenhuma conta ativa encontrada. Crie uma conta primeiro.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = {
-                    billToMarkAsPaid?.let { viewModel.markBillAsPaid(it) }
-                    showMarkAsPaidDialog = false
-                    billToMarkAsPaid = null
-                }) {
+                TextButton(
+                    onClick = {
+                        billToMarkAsPaid?.let { billId ->
+                            selectedAccountId?.let { accountId ->
+                                viewModel.markBillAsPaid(billId, accountId)
+                                showMarkAsPaidDialog = false
+                                billToMarkAsPaid = null
+                                selectedAccountId = null
+                            }
+                        }
+                    },
+                    enabled = selectedAccountId != null
+                ) {
                     Text("Marcar como Paga", color = MaterialTheme.colorScheme.secondary)
                 }
             },
@@ -461,6 +530,7 @@ fun CreditCardDetailScreen(
                 TextButton(onClick = {
                     showMarkAsPaidDialog = false
                     billToMarkAsPaid = null
+                    selectedAccountId = null
                 }) {
                     Text("Cancelar")
                 }
