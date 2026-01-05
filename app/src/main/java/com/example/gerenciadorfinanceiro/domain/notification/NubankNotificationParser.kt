@@ -13,6 +13,7 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
     private val pixReimbursementPattern = Regex("Você recebeu um reembolso de R\\$\\s*([\\d.,]+)\\s*de\\s*(.+?)\\.", RegexOption.IGNORE_CASE)
     private val creditCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s+para o cartão com final\\s+(\\d{4})", RegexOption.IGNORE_CASE)
     private val debitCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s+.*débito", RegexOption.IGNORE_CASE)
+    private val billPaymentPattern = Regex("fatura.*paga", RegexOption.IGNORE_CASE)
 
     override fun canParse(source: NotificationSource): Boolean {
         return source == NotificationSource.NUBANK
@@ -21,6 +22,21 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
     override fun parse(title: String, text: String, timestamp: Long): ParsedNotification? {
         val combined = "$title $text"
         Log.d(TAG, "Parsing Nubank notification: $combined")
+
+        // Check for bill payment notification first
+        val billPaymentMatch = billPaymentPattern.find(combined)
+        if (billPaymentMatch != null) {
+            Log.d(TAG, "Matched bill payment pattern: ${billPaymentMatch.value}")
+            return ParsedNotification(
+                source = NotificationSource.NUBANK,
+                amount = 0,  // Amount not relevant for bill payment detection
+                description = "Fatura paga",
+                timestamp = timestamp,
+                transactionType = null,
+                lastFourDigits = null,
+                isBillPayment = true
+            )
+        }
 
         val creditCardMatch = creditCardPurchasePattern.find(text)
         if (creditCardMatch != null) {

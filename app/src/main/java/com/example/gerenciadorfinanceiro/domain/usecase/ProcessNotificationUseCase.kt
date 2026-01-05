@@ -11,7 +11,8 @@ class ProcessNotificationUseCase @Inject constructor(
     private val processedNotificationRepository: ProcessedNotificationRepository,
     private val createBankTransactionUseCase: CreateBankTransactionUseCase,
     private val createWalletPurchaseUseCase: CreateWalletPurchaseUseCase,
-    private val createCreditCardPurchaseUseCase: CreateCreditCardPurchaseUseCase
+    private val createCreditCardPurchaseUseCase: CreateCreditCardPurchaseUseCase,
+    private val markBillAsPaidUseCase: MarkBillAsPaidUseCase
 ) {
     suspend operator fun invoke(
         source: NotificationSource,
@@ -25,6 +26,19 @@ class ProcessNotificationUseCase @Inject constructor(
 
             val parsed = parser.parse(title, text, timestamp)
                 ?: return Result.failure(Exception("Failed to parse notification from $source"))
+
+            // Handle bill payment notifications
+            if (parsed.isBillPayment) {
+                Log.d(TAG, "Processing bill payment notification")
+                markBillAsPaidUseCase.markLatestClosedBillAsPaid()
+                    .onSuccess {
+                        Log.i(TAG, "Successfully marked bill as paid from notification")
+                    }
+                    .onFailure { e ->
+                        Log.e(TAG, "Failed to mark bill as paid: ${e.message}")
+                    }
+                return Result.success(Unit)
+            }
 
             val notificationKey = generateKey(parsed.source, parsed.timestamp, parsed.amount)
 

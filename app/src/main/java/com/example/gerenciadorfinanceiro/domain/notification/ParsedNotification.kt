@@ -9,5 +9,6 @@ data class ParsedNotification(
     val description: String,
     val timestamp: Long,
     val transactionType: TransactionType? = null,
-    val lastFourDigits: String? = null
+    val lastFourDigits: String? = null,
+    val isBillPayment: Boolean = false
 )

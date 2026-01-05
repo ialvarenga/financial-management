@@ -34,6 +34,7 @@ fun CreditCardDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<CreditCardItem?>(null) }
     var expandedBillIds by remember { mutableStateOf(setOf<Long>()) }
+    var isCurrentBillExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -222,7 +223,52 @@ fun CreditCardDetailScreen(
                 item {
                     val currentBill = uiState.currentBill
                     if (currentBill != null) {
-                        BillCard(bill = currentBill)
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            BillCard(
+                                bill = currentBill,
+                                isExpanded = isCurrentBillExpanded,
+                                onClick = {
+                                    isCurrentBillExpanded = !isCurrentBillExpanded
+                                },
+                                onMarkAsPaid = { viewModel.markBillAsPaid(currentBill.id) }
+                            )
+
+                            // Show items when expanded
+                            if (isCurrentBillExpanded) {
+                                if (uiState.currentBillItems.isEmpty()) {
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 16.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Nenhum item nesta fatura",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    uiState.currentBillItems.forEach { item ->
+                                        Box(modifier = Modifier.padding(start = 16.dp)) {
+                                            CreditCardItemCard(
+                                                item = item,
+                                                onEdit = { onNavigateToEditItem(item.creditCardBillId, item.id) },
+                                                onDelete = { itemToDelete = item }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         Card(
                             modifier = Modifier.fillMaxWidth()
@@ -239,47 +285,6 @@ fun CreditCardDetailScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                        }
-                    }
-                }
-
-                // Current Bill Items
-                if (uiState.currentBill != null) {
-                    item {
-                        Text(
-                            text = "Itens da Fatura",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-
-                    if (uiState.currentBillItems.isEmpty()) {
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(24.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "Nenhum item na fatura",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        items(
-                            items = uiState.currentBillItems
-                        ) { item ->
-                            CreditCardItemCard(
-                                item = item,
-                                onEdit = { onNavigateToEditItem(item.creditCardBillId, item.id) },
-                                onDelete = { itemToDelete = item }
-                            )
                         }
                     }
                 }
@@ -328,7 +333,8 @@ fun CreditCardDetailScreen(
                                     } else {
                                         expandedBillIds + bill.id
                                     }
-                                }
+                                },
+                                onMarkAsPaid = { viewModel.markBillAsPaid(bill.id) }
                             )
 
                             // Show items when expanded
@@ -430,7 +436,8 @@ fun CreditCardDetailScreen(
 fun BillCard(
     bill: CreditCardBill,
     isExpanded: Boolean = false,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    onMarkAsPaid: (() -> Unit)? = null
 ) {
     val formatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("pt", "BR"))
     val monthYear = Instant.ofEpochMilli(bill.closingDate)
@@ -504,6 +511,25 @@ fun BillCard(
                         text = dueDate,
                         style = MaterialTheme.typography.bodyLarge
                     )
+                }
+            }
+
+            // Show "Mark as Paid" button for closed unpaid bills
+            if (bill.status == BillStatus.CLOSED && onMarkAsPaid != null) {
+                Button(
+                    onClick = onMarkAsPaid,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Marcar como Paga")
                 }
             }
         }

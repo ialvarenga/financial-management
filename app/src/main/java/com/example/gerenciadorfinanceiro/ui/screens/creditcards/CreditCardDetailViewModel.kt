@@ -36,6 +36,7 @@ class CreditCardDetailViewModel @Inject constructor(
     private val billRepository: CreditCardBillRepository,
     private val itemRepository: CreditCardItemRepository,
     private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
+    private val markBillAsPaidUseCase: com.example.gerenciadorfinanceiro.domain.usecase.MarkBillAsPaidUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -47,8 +48,18 @@ class CreditCardDetailViewModel @Inject constructor(
         itemRepository.getTotalUnpaidItemsByCard(cardId)
     ) { card, bills, usedLimit ->
         val now = LocalDate.now()
-        val currentBill = bills.firstOrNull {
+        val currentMonthBill = bills.firstOrNull {
             it.month == now.monthValue && it.year == now.year
+        }
+
+        // If current month's bill is closed and paid, show the next month's bill
+        val currentBill = if (currentMonthBill?.status == BillStatus.PAID) {
+            val nextMonth = now.plusMonths(1)
+            bills.firstOrNull {
+                it.month == nextMonth.monthValue && it.year == nextMonth.year
+            }
+        } else {
+            currentMonthBill
         }
 
         // Calculate available limit
@@ -139,6 +150,12 @@ class CreditCardDetailViewModel @Inject constructor(
                 val newTotal = itemRepository.getTotalAmountByBill(billId)
                 billRepository.updateTotalAmount(billId, newTotal)
             }
+        }
+    }
+
+    fun markBillAsPaid(billId: Long) {
+        viewModelScope.launch {
+            markBillAsPaidUseCase(billId)
         }
     }
 }
