@@ -13,6 +13,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.Category
+import com.example.gerenciadorfinanceiro.util.toReais
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +65,105 @@ fun AddEditCreditCardItemScreen(
                             text = "Fatura: ${bill.month}/${bill.year}",
                             style = MaterialTheme.typography.titleMedium
                         )
+                    }
+                }
+            }
+
+            // Bill Selector (only in edit mode)
+            if (uiState.isEditing && uiState.canChangeBill && uiState.availableBills.isNotEmpty()) {
+                Text(
+                    text = "Alterar Fatura",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+
+                var expandedBill by remember { mutableStateOf(false) }
+
+                ExposedDropdownMenuBox(
+                    expanded = expandedBill,
+                    onExpandedChange = { expandedBill = it }
+                ) {
+                    val selectedBillId = uiState.selectedBillId ?: uiState.bill?.id
+                    val selectedBill = uiState.availableBills.find { it.id == selectedBillId }
+                        ?: uiState.bill
+
+                    OutlinedTextField(
+                        value = selectedBill?.let { "${it.month}/${it.year}" } ?: "",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Fatura") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedBill)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        supportingText = {
+                            if (uiState.editingItem?.installmentGroupId != null) {
+                                Text(
+                                    text = "Todas as parcelas serão movidas juntas",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expandedBill,
+                        onDismissRequest = { expandedBill = false }
+                    ) {
+                        uiState.availableBills.forEach { bill ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text("${bill.month}/${bill.year}")
+                                        Text(
+                                            text = bill.totalAmount.toReais(),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    viewModel.onBillChange(bill.id)
+                                    expandedBill = false
+                                },
+                                leadingIcon = if (bill.id == selectedBillId) {
+                                    { Icon(Icons.Default.Check, contentDescription = null) }
+                                } else null
+                            )
+                        }
+                    }
+                }
+
+                // Warning card for installment moves
+                if (uiState.editingItem?.installmentGroupId != null &&
+                    uiState.selectedBillId != null &&
+                    uiState.selectedBillId != uiState.bill?.id
+                ) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "Atenção: Todas as ${uiState.installments} parcelas serão " +
+                                        "movidas para as faturas correspondentes.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 }
             }

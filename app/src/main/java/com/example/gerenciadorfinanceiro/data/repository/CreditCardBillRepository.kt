@@ -14,6 +14,12 @@ class CreditCardBillRepository @Inject constructor(
     fun getBillsByCard(creditCardId: Long): Flow<List<CreditCardBill>> =
         billDao.getBillsByCard(creditCardId)
 
+    fun getOpenBillsByCard(creditCardId: Long): Flow<List<CreditCardBill>> =
+        billDao.getOpenBillsByCard(creditCardId)
+
+    suspend fun getOpenBillsByCardSync(creditCardId: Long): List<CreditCardBill> =
+        billDao.getOpenBillsByCardSync(creditCardId)
+
     fun getBillByCardAndMonthFlow(creditCardId: Long, month: Int, year: Int): Flow<CreditCardBill?> =
         billDao.getBillByCardAndMonthFlow(creditCardId, month, year)
 

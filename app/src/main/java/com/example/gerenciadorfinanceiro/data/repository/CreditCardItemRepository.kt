@@ -23,6 +23,9 @@ class CreditCardItemRepository @Inject constructor(
     suspend fun getItemsByInstallmentGroupSync(groupId: String): List<CreditCardItem> =
         itemDao.getItemsByInstallmentGroupSync(groupId)
 
+    suspend fun getBillIdsForInstallmentGroup(groupId: String): List<Long> =
+        itemDao.getBillIdsForInstallmentGroup(groupId)
+
     fun getByIdFlow(id: Long): Flow<CreditCardItem?> = itemDao.getByIdFlow(id)
 
     suspend fun getById(id: Long): CreditCardItem? = itemDao.getById(id)

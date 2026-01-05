@@ -14,6 +14,12 @@ interface CreditCardBillDao {
     @Query("SELECT * FROM credit_card_bills WHERE creditCardId = :creditCardId ORDER BY year DESC, month DESC")
     fun getBillsByCard(creditCardId: Long): Flow<List<CreditCardBill>>
 
+    @Query("SELECT * FROM credit_card_bills WHERE creditCardId = :creditCardId AND status = 'OPEN' ORDER BY year ASC, month ASC")
+    fun getOpenBillsByCard(creditCardId: Long): Flow<List<CreditCardBill>>
+
+    @Query("SELECT * FROM credit_card_bills WHERE creditCardId = :creditCardId AND status = 'OPEN' ORDER BY year ASC, month ASC")
+    suspend fun getOpenBillsByCardSync(creditCardId: Long): List<CreditCardBill>
+
     @Query("SELECT * FROM credit_card_bills WHERE creditCardId = :creditCardId AND month = :month AND year = :year")
     suspend fun getBillByCardAndMonth(creditCardId: Long, month: Int, year: Int): CreditCardBill?
 

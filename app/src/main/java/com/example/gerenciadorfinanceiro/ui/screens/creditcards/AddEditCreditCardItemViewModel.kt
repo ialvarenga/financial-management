@@ -11,6 +11,7 @@ import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.usecase.AddCreditCardItemUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.CreateInstallmentPurchaseUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetOrCreateBillUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.MoveCreditCardItemToBillUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.UpdateCreditCardItemUseCase
 import com.example.gerenciadorfinanceiro.util.toCents
 import com.example.gerenciadorfinanceiro.util.toReais
@@ -25,6 +26,9 @@ data class AddEditCreditCardItemUiState(
     val category: Category = Category.OTHER,
     val installments: Int = 1,
     val bill: CreditCardBill? = null,
+    val selectedBillId: Long? = null,
+    val availableBills: List<CreditCardBill> = emptyList(),
+    val canChangeBill: Boolean = false,
     val availableCategories: List<Category> = Category.expenses(),
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
@@ -41,6 +45,7 @@ class AddEditCreditCardItemViewModel @Inject constructor(
     private val updateItemUseCase: UpdateCreditCardItemUseCase,
     private val createInstallmentPurchaseUseCase: CreateInstallmentPurchaseUseCase,
     private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
+    private val moveToBillUseCase: MoveCreditCardItemToBillUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -55,6 +60,21 @@ class AddEditCreditCardItemViewModel @Inject constructor(
             loadItem()
         } else if (billId > 0) {
             loadBill()
+        }
+    }
+
+    private fun loadAvailableBills() {
+        val currentBill = _uiState.value.bill ?: return
+        viewModelScope.launch {
+            billRepository.getOpenBillsByCard(currentBill.creditCardId)
+                .collectLatest { bills ->
+                    _uiState.update {
+                        it.copy(
+                            availableBills = bills,
+                            canChangeBill = it.isEditing
+                        )
+                    }
+                }
         }
     }
 
@@ -76,6 +96,7 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                         isLoading = false
                     )
                 }
+                loadAvailableBills()
             } else {
                 _uiState.update {
                     it.copy(
@@ -113,6 +134,15 @@ class AddEditCreditCardItemViewModel @Inject constructor(
         }
     }
 
+    fun onBillChange(newBillId: Long) {
+        _uiState.update {
+            it.copy(
+                selectedBillId = newBillId,
+                errorMessage = null
+            )
+        }
+    }
+
     fun save() {
         val currentState = _uiState.value
 
@@ -141,15 +171,35 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                 if (currentState.isEditing && currentState.editingItem != null) {
                     val originalItem = currentState.editingItem
 
+                    // Check if bill was changed
+                    val targetBillId = currentState.selectedBillId ?: originalItem.creditCardBillId
+                    val billChanged = targetBillId != originalItem.creditCardBillId
+
+                    if (billChanged) {
+                        // Move item to new bill
+                        val moveResult = moveToBillUseCase(originalItem.id, targetBillId)
+                        if (moveResult.isFailure) {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = moveResult.exceptionOrNull()?.message
+                                        ?: "Erro ao mover item"
+                                )
+                            }
+                            return@launch
+                        }
+                    }
+
                     // Check if user is converting a single item to installments
                     if (originalItem.totalInstallments == 1 && currentState.installments > 1) {
                         // Delete the original item
                         itemRepository.delete(originalItem)
 
                         // Create installment purchases
-                        val startDate = java.time.LocalDate.of(bill.year, bill.month, 1)
+                        val targetBill = billRepository.getById(targetBillId) ?: bill
+                        val startDate = java.time.LocalDate.of(targetBill.year, targetBill.month, 1)
                         createInstallmentPurchaseUseCase(
-                            creditCardId = bill.creditCardId,
+                            creditCardId = targetBill.creditCardId,
                             description = currentState.description.trim(),
                             totalAmount = amountInCents,
                             category = currentState.category,
@@ -159,12 +209,14 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                             startYear = startDate.year
                         )
 
-                        // Update bill total for the original bill
-                        val newTotal = itemRepository.getTotalAmountByBill(bill.id)
-                        billRepository.updateTotalAmount(bill.id, newTotal)
+                        // Update bill total for the target bill
+                        val newTotal = itemRepository.getTotalAmountByBill(targetBillId)
+                        billRepository.updateTotalAmount(targetBillId, newTotal)
                     } else {
                         // Simple update (no installment conversion)
+                        // Note: billId is already updated by moveToBillUseCase if changed
                         val updatedItem = originalItem.copy(
+                            creditCardBillId = targetBillId,
                             description = currentState.description.trim(),
                             amount = amountInCents,
                             category = currentState.category

@@ -29,6 +29,9 @@ interface CreditCardItemDao {
     @Query("SELECT * FROM credit_card_items WHERE installmentGroupId = :groupId ORDER BY installmentNumber ASC")
     suspend fun getItemsByInstallmentGroupSync(groupId: String): List<CreditCardItem>
 
+    @Query("SELECT DISTINCT creditCardBillId FROM credit_card_items WHERE installmentGroupId = :groupId")
+    suspend fun getBillIdsForInstallmentGroup(groupId: String): List<Long>
+
     @Query("SELECT * FROM credit_card_items WHERE id = :id")
     suspend fun getById(id: Long): CreditCardItem?
 
