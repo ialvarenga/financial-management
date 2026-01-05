@@ -35,6 +35,8 @@ fun CreditCardDetailScreen(
     var itemToDelete by remember { mutableStateOf<CreditCardItem?>(null) }
     var expandedBillIds by remember { mutableStateOf(setOf<Long>()) }
     var isCurrentBillExpanded by remember { mutableStateOf(false) }
+    var showMarkAsPaidDialog by remember { mutableStateOf(false) }
+    var billToMarkAsPaid by remember { mutableStateOf<Long?>(null) }
 
     Scaffold(
         topBar = {
@@ -232,7 +234,10 @@ fun CreditCardDetailScreen(
                                 onClick = {
                                     isCurrentBillExpanded = !isCurrentBillExpanded
                                 },
-                                onMarkAsPaid = { viewModel.markBillAsPaid(currentBill.id) }
+                                onMarkAsPaid = {
+                                    billToMarkAsPaid = currentBill.id
+                                    showMarkAsPaidDialog = true
+                                }
                             )
 
                             // Show items when expanded
@@ -334,7 +339,10 @@ fun CreditCardDetailScreen(
                                         expandedBillIds + bill.id
                                     }
                                 },
-                                onMarkAsPaid = { viewModel.markBillAsPaid(bill.id) }
+                                onMarkAsPaid = {
+                                    billToMarkAsPaid = bill.id
+                                    showMarkAsPaidDialog = true
+                                }
                             )
 
                             // Show items when expanded
@@ -425,6 +433,35 @@ fun CreditCardDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { itemToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    // Mark as paid confirmation dialog
+    if (showMarkAsPaidDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showMarkAsPaidDialog = false
+                billToMarkAsPaid = null
+            },
+            title = { Text("Marcar fatura como paga") },
+            text = { Text("Deseja realmente marcar esta fatura como paga? Esta ação não pode ser desfeita.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    billToMarkAsPaid?.let { viewModel.markBillAsPaid(it) }
+                    showMarkAsPaidDialog = false
+                    billToMarkAsPaid = null
+                }) {
+                    Text("Marcar como Paga", color = MaterialTheme.colorScheme.secondary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showMarkAsPaidDialog = false
+                    billToMarkAsPaid = null
+                }) {
                     Text("Cancelar")
                 }
             }
