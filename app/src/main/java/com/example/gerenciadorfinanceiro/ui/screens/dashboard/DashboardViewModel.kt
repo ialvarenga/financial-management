@@ -52,7 +52,7 @@ class DashboardViewModel @Inject constructor(
             getDashboardSummaryUseCase(month, year),
             getBalanceAfterPaymentsUseCase(month, year),
             accountRepository.getActiveAccounts(),
-            getMonthlyExpensesUseCase(month, year),
+            getMonthlyExpensesUseCase(month, year, excludeConfirmed = true),
             getDashboardDataUseCase(month, year)
         ) { summary, projection, accounts, projectedRecurrences, dashboardData ->
             DashboardUiState(

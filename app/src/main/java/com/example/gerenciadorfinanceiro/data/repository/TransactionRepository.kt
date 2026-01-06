@@ -9,6 +9,7 @@ import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -98,9 +99,16 @@ class TransactionRepository @Inject constructor(
     ): Flow<List<Transaction>> =
         transactionDao.getByRecurrenceIdAndDateRange(recurrenceId, startDate, endDate)
 
-    fun getConfirmedRecurrenceIdsForDateRange(
+    fun getRecurrenceIdsWithTransactionsInDateRange(
         startDate: Long,
         endDate: Long
     ): Flow<List<Long>> =
-        transactionDao.getConfirmedRecurrenceIdsForDateRange(startDate, endDate)
+        transactionDao.getRecurrenceIdsWithTransactionsInDateRange(startDate, endDate)
+
+    fun getTransactionCountsByRecurrenceInDateRange(
+        startDate: Long,
+        endDate: Long
+    ): Flow<Map<Long, Int>> =
+        transactionDao.getTransactionCountsByRecurrenceInDateRange(startDate, endDate)
+            .map { counts -> counts.associate { it.recurrenceId to it.count } }
 }

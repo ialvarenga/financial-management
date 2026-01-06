@@ -4,6 +4,7 @@ import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardCateg
 import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardItemDao
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,6 +56,10 @@ class CreditCardItemRepository @Inject constructor(
     fun getCategoryTotalsForMonth(month: Int, year: Int): Flow<List<CreditCardCategoryTotal>> =
         itemDao.getCategoryTotalsForMonth(month, year)
 
-    fun getConfirmedRecurrenceIdsForMonth(month: Int, year: Int): Flow<List<Long>> =
-        itemDao.getConfirmedRecurrenceIdsForMonth(month, year)
+    fun getRecurrenceIdsWithItemsInMonth(month: Int, year: Int): Flow<List<Long>> =
+        itemDao.getRecurrenceIdsWithItemsInMonth(month, year)
+
+    fun getItemCountsByRecurrenceInMonth(month: Int, year: Int): Flow<Map<Long, Int>> =
+        itemDao.getItemCountsByRecurrenceInMonth(month, year)
+            .map { counts -> counts.associate { it.recurrenceId to it.count } }
 }

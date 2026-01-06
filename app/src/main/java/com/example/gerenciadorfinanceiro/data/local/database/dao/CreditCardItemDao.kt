@@ -3,6 +3,7 @@ package com.example.gerenciadorfinanceiro.data.local.database.dao
 import androidx.room.*
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.domain.model.Category
+import com.example.gerenciadorfinanceiro.domain.model.RecurrenceCount
 import kotlinx.coroutines.flow.Flow
 
 data class CreditCardCategoryTotal(
@@ -81,11 +82,21 @@ interface CreditCardItemDao {
     fun getCategoryTotalsForMonth(month: Int, year: Int): Flow<List<CreditCardCategoryTotal>>
 
     @Query("""
-        SELECT items.recurrenceId
+        SELECT DISTINCT items.recurrenceId
         FROM credit_card_items items
         INNER JOIN credit_card_bills bills ON items.creditCardBillId = bills.id
         WHERE items.recurrenceId IS NOT NULL
         AND bills.month = :month AND bills.year = :year
     """)
-    fun getConfirmedRecurrenceIdsForMonth(month: Int, year: Int): Flow<List<Long>>
+    fun getRecurrenceIdsWithItemsInMonth(month: Int, year: Int): Flow<List<Long>>
+
+    @Query("""
+        SELECT items.recurrenceId, COUNT(*) as count
+        FROM credit_card_items items
+        INNER JOIN credit_card_bills bills ON items.creditCardBillId = bills.id
+        WHERE items.recurrenceId IS NOT NULL
+        AND bills.month = :month AND bills.year = :year
+        GROUP BY items.recurrenceId
+    """)
+    fun getItemCountsByRecurrenceInMonth(month: Int, year: Int): Flow<List<RecurrenceCount>>
 }

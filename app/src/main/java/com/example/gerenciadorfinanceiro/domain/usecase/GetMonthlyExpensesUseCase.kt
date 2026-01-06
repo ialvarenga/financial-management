@@ -47,22 +47,59 @@ class GetMonthlyExpensesUseCase @Inject constructor(
             }
         }
 
-        // Combine recurrences with confirmed recurrence IDs from both transactions and credit card items
+        // Combine recurrences with confirmed IDs (for monthly/yearly) and counts (for weekly/daily)
         return combine(
             recurrenceRepository.getActiveRecurrences(),
-            transactionRepository.getConfirmedRecurrenceIdsForDateRange(startMillis, endMillis),
-            creditCardItemRepository.getConfirmedRecurrenceIdsForMonth(month, year)
-        ) { recurrences, confirmedTransactionRecurrenceIds, confirmedCreditCardRecurrenceIds ->
-            // Combine all confirmed recurrence IDs
-            val allConfirmedRecurrenceIds = (confirmedTransactionRecurrenceIds + confirmedCreditCardRecurrenceIds).toSet()
+            transactionRepository.getRecurrenceIdsWithTransactionsInDateRange(startMillis, endMillis),
+            creditCardItemRepository.getRecurrenceIdsWithItemsInMonth(month, year),
+            transactionRepository.getTransactionCountsByRecurrenceInDateRange(startMillis, endMillis),
+            creditCardItemRepository.getItemCountsByRecurrenceInMonth(month, year)
+        ) { recurrences, transactionRecurrenceIds, creditCardRecurrenceIds, transactionCounts, creditCardCounts ->
+            // Combine confirmed recurrence IDs (for monthly/yearly filtering)
+            val confirmedRecurrenceIds = (transactionRecurrenceIds + creditCardRecurrenceIds).toSet()
 
-            // Filter out recurrences that have already been confirmed
-            recurrences
-                .filter { recurrence -> recurrence.id !in allConfirmedRecurrenceIds }
-                .flatMap { recurrence ->
-                    projectRecurrenceForMonth(recurrence, startDate, endDate)
+            // Combine counts (for weekly/daily filtering)
+            val allCounts = mutableMapOf<Long, Int>()
+            transactionCounts.forEach { (id, count) -> allCounts[id] = allCounts.getOrDefault(id, 0) + count }
+            creditCardCounts.forEach { (id, count) -> allCounts[id] = allCounts.getOrDefault(id, 0) + count }
+
+            recurrences.flatMap { recurrence ->
+                when (recurrence.frequency) {
+                    Frequency.MONTHLY, Frequency.YEARLY -> {
+                        // For monthly/yearly: if there's ANY transaction/item, don't show projected
+                        if (recurrence.id in confirmedRecurrenceIds) {
+                            emptyList()
+                        } else {
+                            projectRecurrenceForMonth(recurrence, startDate, endDate)
+                        }
+                    }
+                    Frequency.WEEKLY, Frequency.DAILY -> {
+                        // For weekly/daily: calculate expected count, subtract actual count
+                        val expectedCount = countExpectedOccurrences(recurrence, startDate, endDate)
+                        val actualCount = allCounts[recurrence.id] ?: 0
+                        val remainingCount = (expectedCount - actualCount).coerceAtLeast(0)
+
+                        if (remainingCount > 0) {
+                            // Return the first N occurrences as projected
+                            projectRecurrenceForMonth(recurrence, startDate, endDate).take(remainingCount)
+                        } else {
+                            emptyList()
+                        }
+                    }
                 }
+            }
         }
+    }
+
+    /**
+     * Counts how many occurrences a recurrence should have in the given date range
+     */
+    private fun countExpectedOccurrences(
+        recurrence: Recurrence,
+        monthStart: LocalDate,
+        monthEnd: LocalDate
+    ): Int {
+        return projectRecurrenceForMonth(recurrence, monthStart, monthEnd).size
     }
 
     private fun projectRecurrenceForMonth(
