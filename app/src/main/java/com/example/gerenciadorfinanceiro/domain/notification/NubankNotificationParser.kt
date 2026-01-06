@@ -14,6 +14,8 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
     private val creditCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s+para o cartão com final\\s+(\\d{4})", RegexOption.IGNORE_CASE)
     private val debitCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s+.*débito", RegexOption.IGNORE_CASE)
     private val billPaymentPattern = Regex("fatura.*paga", RegexOption.IGNORE_CASE)
+    private val nupayTitlePattern = Regex("Compra aprovada com Nupay de R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
+    private val nupayTextPattern = Regex("Compra em (\\d+)x no (Crédito|Débito).*APROVADA em\\s+(.+?)(?:\\s|$)", RegexOption.IGNORE_CASE)
 
     override fun canParse(source: NotificationSource): Boolean {
         return source == NotificationSource.NUBANK
@@ -36,6 +38,35 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
                 lastFourDigits = null,
                 isBillPayment = true
             )
+        }
+
+        // Check for Nupay purchase pattern
+        val nupayTitleMatch = nupayTitlePattern.find(title)
+        if (nupayTitleMatch != null) {
+            Log.d(TAG, "Matched Nupay title pattern: ${nupayTitleMatch.value}")
+            val amountStr = "R$ ${nupayTitleMatch.groupValues[1]}"
+            val amount = amountStr.toCents() ?: return null
+
+            val nupayTextMatch = nupayTextPattern.find(text)
+            if (nupayTextMatch != null) {
+                Log.d(TAG, "Matched Nupay text pattern: ${nupayTextMatch.value}")
+                val installments = nupayTextMatch.groupValues[1].toIntOrNull() ?: 1
+                val paymentMethod = nupayTextMatch.groupValues[2].trim()
+                val place = nupayTextMatch.groupValues[3].trim()
+
+                // Determine if it's credit or debit based on the text
+                val isCredit = paymentMethod.equals("Crédito", ignoreCase = true)
+
+                return ParsedNotification(
+                    source = NotificationSource.NUBANK,
+                    amount = amount,
+                    description = place,
+                    timestamp = timestamp,
+                    transactionType = if (isCredit) null else TransactionType.EXPENSE,
+                    lastFourDigits = null,
+                    installments = installments
+                )
+            }
         }
 
         val creditCardMatch = creditCardPurchasePattern.find(text)

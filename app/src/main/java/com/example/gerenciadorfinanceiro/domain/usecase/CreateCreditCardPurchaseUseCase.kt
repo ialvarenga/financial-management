@@ -18,11 +18,15 @@ class CreateCreditCardPurchaseUseCase @Inject constructor(
     private val addCreditCardItemUseCase: AddCreditCardItemUseCase
 ) {
     suspend operator fun invoke(parsed: ParsedNotification, notificationKey: String): ProcessedNotification {
-        val lastFourDigits = parsed.lastFourDigits
-            ?: throw IllegalArgumentException("Credit card purchase must have lastFourDigits")
-
-        val creditCard = creditCardRepository.getByLastFourDigits(lastFourDigits)
-            ?: throw IllegalStateException("No credit card found with last 4 digits: $lastFourDigits")
+        val creditCard = if (parsed.lastFourDigits != null) {
+            // Find by last 4 digits
+            creditCardRepository.getByLastFourDigits(parsed.lastFourDigits)
+                ?: throw IllegalStateException("No credit card found with last 4 digits: ${parsed.lastFourDigits}")
+        } else {
+            // For Nupay notifications without last 4 digits, find the Nubank credit card
+            creditCardRepository.getByBank(com.example.gerenciadorfinanceiro.domain.model.Bank.NUBANK)
+                ?: throw IllegalStateException("No Nubank credit card found for Nupay purchase")
+        }
 
         // Determine the month/year from the purchase timestamp
         val purchaseDate = Instant.ofEpochMilli(parsed.timestamp)
@@ -56,7 +60,7 @@ class CreateCreditCardPurchaseUseCase @Inject constructor(
             amount = parsed.amount,
             purchaseDate = parsed.timestamp,
             installmentNumber = 1,
-            totalInstallments = 1,
+            totalInstallments = parsed.installments,
             installmentGroupId = null
         )
 

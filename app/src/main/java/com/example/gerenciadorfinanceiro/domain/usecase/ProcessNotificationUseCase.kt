@@ -52,7 +52,11 @@ class ProcessNotificationUseCase @Inject constructor(
                     createWalletPurchaseUseCase(parsed, notificationKey)
                 }
                 parsed.lastFourDigits != null -> {
-                    // Credit card purchase
+                    // Credit card purchase with last 4 digits
+                    createCreditCardPurchaseUseCase(parsed, notificationKey)
+                }
+                parsed.transactionType == null && source == NotificationSource.NUBANK -> {
+                    // Nupay credit card purchase without last 4 digits
                     createCreditCardPurchaseUseCase(parsed, notificationKey)
                 }
                 source == NotificationSource.ITAU || source == NotificationSource.NUBANK -> {
