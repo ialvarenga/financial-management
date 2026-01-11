@@ -16,8 +16,10 @@ import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.domain.model.BillStatus
 import com.example.gerenciadorfinanceiro.util.toReais
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -264,13 +266,19 @@ fun CreditCardDetailScreen(
                                         }
                                     }
                                 } else {
-                                    uiState.currentBillItems.forEach { item ->
+                                    val groupedItems = groupItemsByDate(uiState.currentBillItems)
+                                    groupedItems.forEach { (date, items) ->
                                         Box(modifier = Modifier.padding(start = 16.dp)) {
-                                            CreditCardItemCard(
-                                                item = item,
-                                                onEdit = { onNavigateToEditItem(item.creditCardBillId, item.id) },
-                                                onDelete = { itemToDelete = item }
-                                            )
+                                            DateHeader(date = date)
+                                        }
+                                        items.forEach { item ->
+                                            Box(modifier = Modifier.padding(start = 16.dp)) {
+                                                CreditCardItemCard(
+                                                    item = item,
+                                                    onEdit = { onNavigateToEditItem(item.creditCardBillId, item.id) },
+                                                    onDelete = { itemToDelete = item }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -369,13 +377,19 @@ fun CreditCardDetailScreen(
                                         }
                                     }
                                 } else {
-                                    billItems.forEach { item ->
+                                    val groupedBillItems = groupItemsByDate(billItems)
+                                    groupedBillItems.forEach { (date, items) ->
                                         Box(modifier = Modifier.padding(start = 16.dp)) {
-                                            CreditCardItemCard(
-                                                item = item,
-                                                onEdit = { onNavigateToEditItem(item.creditCardBillId, item.id) },
-                                                onDelete = { itemToDelete = item }
-                                            )
+                                            DateHeader(date = date)
+                                        }
+                                        items.forEach { item ->
+                                            Box(modifier = Modifier.padding(start = 16.dp)) {
+                                                CreditCardItemCard(
+                                                    item = item,
+                                                    onEdit = { onNavigateToEditItem(item.creditCardBillId, item.id) },
+                                                    onDelete = { itemToDelete = item }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -788,4 +802,48 @@ fun CreditCardItemCard(
             }
         }
     }
+}
+
+@Composable
+fun DateHeader(date: LocalDate) {
+    val today = LocalDate.now()
+    val yesterday = today.minusDays(1)
+
+    val displayText = when (date) {
+        today -> "Hoje"
+        yesterday -> "Ontem"
+        else -> {
+            val formatter = DateTimeFormatter.ofPattern("EEEE, dd 'de' MMMM", Locale("pt", "BR"))
+            date.format(formatter).replaceFirstChar { it.uppercase() }
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = displayText,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+    }
+}
+
+/**
+ * Groups credit card items by their purchase date
+ */
+fun groupItemsByDate(items: List<CreditCardItem>): Map<LocalDate, List<CreditCardItem>> {
+    return items.groupBy { item ->
+        Instant.ofEpochMilli(item.purchaseDate)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+    }.toSortedMap(compareByDescending { it })
 }
