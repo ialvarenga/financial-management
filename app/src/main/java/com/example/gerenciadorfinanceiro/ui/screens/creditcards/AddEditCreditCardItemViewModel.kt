@@ -24,6 +24,7 @@ data class AddEditCreditCardItemUiState(
     val description: String = "",
     val amount: String = "",
     val category: Category = Category.OTHER,
+    val purchaseDate: Long = System.currentTimeMillis(),
     val installments: Int = 1,
     val bill: CreditCardBill? = null,
     val selectedBillId: Long? = null,
@@ -89,6 +90,7 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                         description = item.description,
                         amount = item.amount.toReais().replace("R$ ", "").replace(".", ""),
                         category = item.category,
+                        purchaseDate = item.purchaseDate,
                         installments = item.totalInstallments,
                         bill = bill,
                         isEditing = true,
@@ -132,6 +134,10 @@ class AddEditCreditCardItemViewModel @Inject constructor(
         if (installments in 1..12) {
             _uiState.update { it.copy(installments = installments) }
         }
+    }
+
+    fun onPurchaseDateChange(date: Long) {
+        _uiState.update { it.copy(purchaseDate = date) }
     }
 
     fun onBillChange(newBillId: Long) {
@@ -203,7 +209,7 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                             description = currentState.description.trim(),
                             totalAmount = amountInCents,
                             category = currentState.category,
-                            purchaseDate = originalItem.purchaseDate,
+                            purchaseDate = currentState.purchaseDate,
                             numberOfInstallments = currentState.installments,
                             startMonth = startDate.monthValue,
                             startYear = startDate.year
@@ -219,7 +225,8 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                             creditCardBillId = targetBillId,
                             description = currentState.description.trim(),
                             amount = amountInCents,
-                            category = currentState.category
+                            category = currentState.category,
+                            purchaseDate = currentState.purchaseDate
                         )
                         updateItemUseCase(updatedItem)
                     }
@@ -247,7 +254,7 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                             category = currentState.category,
                             description = currentState.description.trim(),
                             amount = amountInCents,
-                            purchaseDate = System.currentTimeMillis(),
+                            purchaseDate = currentState.purchaseDate,
                             installmentNumber = 1,
                             totalInstallments = 1,
                             installmentGroupId = null
@@ -260,7 +267,7 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                             description = currentState.description.trim(),
                             totalAmount = amountInCents,
                             category = currentState.category,
-                            purchaseDate = System.currentTimeMillis(),
+                            purchaseDate = currentState.purchaseDate,
                             numberOfInstallments = currentState.installments,
                             startMonth = startDate.monthValue,
                             startYear = startDate.year

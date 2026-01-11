@@ -1,5 +1,6 @@
 package com.example.gerenciadorfinanceiro.ui.screens.creditcards
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -14,6 +15,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.util.toReais
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -190,6 +194,63 @@ fun AddEditCreditCardItemScreen(
                 placeholder = { Text("0,00") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
             )
+
+            // Date with DatePicker
+            val dateFormatter = remember { DateTimeFormatter.ofPattern("dd/MM/yyyy") }
+            val purchaseDate = remember(uiState.purchaseDate) {
+                Instant.ofEpochMilli(uiState.purchaseDate)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+            }
+            var showDatePicker by remember { mutableStateOf(false) }
+
+            OutlinedTextField(
+                value = purchaseDate.format(dateFormatter),
+                onValueChange = {},
+                label = { Text("Data da compra") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker = true },
+                readOnly = true,
+                enabled = false,
+                leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            )
+
+            if (showDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("OK")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("Cancelar")
+                        }
+                    }
+                ) {
+                    val datePickerState = rememberDatePickerState(
+                        initialSelectedDateMillis = uiState.purchaseDate
+                    )
+                    DatePicker(
+                        state = datePickerState,
+                        title = { Text("Selecione a data", modifier = Modifier.padding(16.dp)) }
+                    )
+
+                    LaunchedEffect(datePickerState.selectedDateMillis) {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            viewModel.onPurchaseDateChange(millis)
+                        }
+                    }
+                }
+            }
 
             // Category Dropdown
             var expandedCategory by remember { mutableStateOf(false) }
