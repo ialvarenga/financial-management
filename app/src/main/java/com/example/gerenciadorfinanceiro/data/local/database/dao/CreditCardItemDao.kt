@@ -99,4 +99,7 @@ interface CreditCardItemDao {
         GROUP BY items.recurrenceId
     """)
     fun getItemCountsByRecurrenceInMonth(month: Int, year: Int): Flow<List<RecurrenceCount>>
+
+    @Query("UPDATE credit_card_items SET category = :category WHERE installmentGroupId = :groupId")
+    suspend fun updateCategoryByInstallmentGroup(groupId: String, category: Category)
 }

@@ -3,6 +3,7 @@ package com.example.gerenciadorfinanceiro.data.repository
 import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardCategoryTotal
 import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardItemDao
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
+import com.example.gerenciadorfinanceiro.domain.model.Category
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -62,4 +63,7 @@ class CreditCardItemRepository @Inject constructor(
     fun getItemCountsByRecurrenceInMonth(month: Int, year: Int): Flow<Map<Long, Int>> =
         itemDao.getItemCountsByRecurrenceInMonth(month, year)
             .map { counts -> counts.associate { it.recurrenceId to it.count } }
+
+    suspend fun updateCategoryByInstallmentGroup(groupId: String, category: Category) =
+        itemDao.updateCategoryByInstallmentGroup(groupId, category)
 }
