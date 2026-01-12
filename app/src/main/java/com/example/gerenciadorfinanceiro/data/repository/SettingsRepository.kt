@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -18,6 +19,7 @@ class SettingsRepository @Inject constructor(
     private val ITAU_ENABLED = booleanPreferencesKey("itau_enabled")
     private val NUBANK_ENABLED = booleanPreferencesKey("nubank_enabled")
     private val GOOGLE_WALLET_ENABLED = booleanPreferencesKey("google_wallet_enabled")
+    private val LAST_SEEN_VERSION = stringPreferencesKey("last_seen_version")
 
     fun isNotificationParsingEnabled(): Flow<Boolean> =
         dataStore.data.map { preferences ->
@@ -46,6 +48,17 @@ class SettingsRepository @Inject constructor(
                 NotificationSource.NUBANK -> preferences[NUBANK_ENABLED] = enabled
                 NotificationSource.GOOGLE_WALLET -> preferences[GOOGLE_WALLET_ENABLED] = enabled
             }
+        }
+    }
+
+    fun getLastSeenVersion(): Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[LAST_SEEN_VERSION] ?: ""
+        }
+
+    suspend fun setLastSeenVersion(version: String) {
+        dataStore.edit { preferences ->
+            preferences[LAST_SEEN_VERSION] = version
         }
     }
 }

@@ -9,8 +9,11 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.gerenciadorfinanceiro.ui.MainViewModel
+import com.example.gerenciadorfinanceiro.ui.components.WhatsNewDialog
 import com.example.gerenciadorfinanceiro.ui.navigation.AppNavigation
 import com.example.gerenciadorfinanceiro.ui.navigation.Screen
 import com.example.gerenciadorfinanceiro.ui.theme.FinancialAppTheme
@@ -30,10 +33,20 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    viewModel: MainViewModel = hiltViewModel()
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val whatsNewNote by viewModel.showWhatsNew.collectAsState()
+
+    whatsNewNote?.let { releaseNote ->
+        WhatsNewDialog(
+            releaseNote = releaseNote,
+            onDismiss = { viewModel.dismissWhatsNew() }
+        )
+    }
 
     Scaffold(
         bottomBar = {
