@@ -182,4 +182,19 @@ interface TransactionDao {
         startDate: Long,
         endDate: Long
     ): Flow<List<RecurrenceCount>>
+
+    @Query("""
+        SELECT EXISTS(
+            SELECT 1 FROM transactions
+            WHERE amount = :amount
+            AND description = :description
+            AND date BETWEEN :startDate AND :endDate
+        )
+    """)
+    suspend fun existsByAmountDescriptionAndDateRange(
+        amount: Long,
+        description: String,
+        startDate: Long,
+        endDate: Long
+    ): Boolean
 }

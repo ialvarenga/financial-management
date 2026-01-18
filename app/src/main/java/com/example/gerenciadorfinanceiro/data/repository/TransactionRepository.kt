@@ -111,4 +111,11 @@ class TransactionRepository @Inject constructor(
     ): Flow<Map<Long, Int>> =
         transactionDao.getTransactionCountsByRecurrenceInDateRange(startDate, endDate)
             .map { counts -> counts.associate { it.recurrenceId to it.count } }
+
+    suspend fun existsByAmountDescriptionAndDateRange(
+        amount: Long,
+        description: String,
+        startDate: Long,
+        endDate: Long
+    ): Boolean = transactionDao.existsByAmountDescriptionAndDateRange(amount, description, startDate, endDate)
 }

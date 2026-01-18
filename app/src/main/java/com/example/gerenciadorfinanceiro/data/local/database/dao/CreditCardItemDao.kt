@@ -102,4 +102,19 @@ interface CreditCardItemDao {
 
     @Query("UPDATE credit_card_items SET category = :category WHERE installmentGroupId = :groupId")
     suspend fun updateCategoryByInstallmentGroup(groupId: String, category: Category)
+
+    @Query("""
+        SELECT EXISTS(
+            SELECT 1 FROM credit_card_items
+            WHERE amount = :amount
+            AND description = :description
+            AND purchaseDate BETWEEN :startDate AND :endDate
+        )
+    """)
+    suspend fun existsByAmountDescriptionAndDateRange(
+        amount: Long,
+        description: String,
+        startDate: Long,
+        endDate: Long
+    ): Boolean
 }

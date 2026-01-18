@@ -66,4 +66,11 @@ class CreditCardItemRepository @Inject constructor(
 
     suspend fun updateCategoryByInstallmentGroup(groupId: String, category: Category) =
         itemDao.updateCategoryByInstallmentGroup(groupId, category)
+
+    suspend fun existsByAmountDescriptionAndDateRange(
+        amount: Long,
+        description: String,
+        startDate: Long,
+        endDate: Long
+    ): Boolean = itemDao.existsByAmountDescriptionAndDateRange(amount, description, startDate, endDate)
 }

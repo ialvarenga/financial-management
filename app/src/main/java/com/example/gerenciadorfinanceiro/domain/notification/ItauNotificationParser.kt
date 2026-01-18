@@ -10,6 +10,10 @@ class ItauNotificationParser @Inject constructor() : NotificationParser {
 
     private val pixReceivedPattern = Regex("PIX recebido.*R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
     private val pixSentPattern = Regex("PIX enviado.*R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
+    private val creditCardPurchasePattern = Regex(
+        "Compra aprovada de R\\$\\s*([\\d.,]+)\\s+em\\s+(.+?)\\s+no dia",
+        RegexOption.IGNORE_CASE
+    )
 
     override fun canParse(source: NotificationSource): Boolean {
         return source == NotificationSource.ITAU
@@ -45,6 +49,22 @@ class ItauNotificationParser @Inject constructor() : NotificationParser {
                 description = "PIX enviado",
                 timestamp = timestamp,
                 transactionType = TransactionType.EXPENSE,
+                lastFourDigits = null
+            )
+        }
+
+        val creditCardMatch = creditCardPurchasePattern.find(combined)
+        if (creditCardMatch != null) {
+            Log.d(TAG, "Matched credit card purchase pattern: ${creditCardMatch.value}")
+            val amountStr = "R$ ${creditCardMatch.groupValues[1]}"
+            val amount = amountStr.toCents() ?: return null
+            val place = creditCardMatch.groupValues[2].trim()
+            return ParsedNotification(
+                source = NotificationSource.ITAU,
+                amount = amount,
+                description = place,
+                timestamp = timestamp,
+                transactionType = null,  // Credit card purchase, not a direct transaction
                 lastFourDigits = null
             )
         }

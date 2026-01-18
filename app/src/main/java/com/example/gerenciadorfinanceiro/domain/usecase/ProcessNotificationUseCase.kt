@@ -12,7 +12,8 @@ class ProcessNotificationUseCase @Inject constructor(
     private val createBankTransactionUseCase: CreateBankTransactionUseCase,
     private val createWalletPurchaseUseCase: CreateWalletPurchaseUseCase,
     private val createCreditCardPurchaseUseCase: CreateCreditCardPurchaseUseCase,
-    private val markBillAsPaidUseCase: MarkBillAsPaidUseCase
+    private val markBillAsPaidUseCase: MarkBillAsPaidUseCase,
+    private val checkDuplicateNotificationUseCase: CheckDuplicateNotificationUseCase
 ) {
     suspend operator fun invoke(
         source: NotificationSource,
@@ -47,6 +48,24 @@ class ProcessNotificationUseCase @Inject constructor(
                 return Result.success(Unit)
             }
 
+            // Determine if this is a credit card item or a transaction
+            val isCreditCardItem = source == NotificationSource.GOOGLE_WALLET ||
+                    parsed.lastFourDigits != null ||
+                    parsed.transactionType == null
+
+            // Check for duplicates in existing data before creating
+            if (isCreditCardItem) {
+                if (checkDuplicateNotificationUseCase.isCreditCardItemDuplicate(parsed)) {
+                    Log.d(TAG, "Skipping duplicate credit card item: ${parsed.description}")
+                    return Result.success(Unit)
+                }
+            } else {
+                if (checkDuplicateNotificationUseCase.isTransactionDuplicate(parsed)) {
+                    Log.d(TAG, "Skipping duplicate transaction: ${parsed.description}")
+                    return Result.success(Unit)
+                }
+            }
+
             val processedNotification = when {
                 source == NotificationSource.GOOGLE_WALLET -> {
                     createWalletPurchaseUseCase(parsed, notificationKey)
@@ -55,8 +74,8 @@ class ProcessNotificationUseCase @Inject constructor(
                     // Credit card purchase with last 4 digits
                     createCreditCardPurchaseUseCase(parsed, notificationKey)
                 }
-                parsed.transactionType == null && source == NotificationSource.NUBANK -> {
-                    // Nupay credit card purchase without last 4 digits
+                parsed.transactionType == null -> {
+                    // Credit card purchase without last 4 digits (Nupay, Itaú credit card, etc.)
                     createCreditCardPurchaseUseCase(parsed, notificationKey)
                 }
                 source == NotificationSource.ITAU || source == NotificationSource.NUBANK -> {
