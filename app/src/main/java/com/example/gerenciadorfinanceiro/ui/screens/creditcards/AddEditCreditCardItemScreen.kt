@@ -17,6 +17,7 @@ import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.util.toReais
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -223,6 +224,16 @@ fun AddEditCreditCardItemScreen(
             )
 
             if (showDatePicker) {
+                // Convert local date to UTC for DatePicker (which uses UTC internally)
+                val initialDateUtc = remember(uiState.purchaseDate) {
+                    val localDate = Instant.ofEpochMilli(uiState.purchaseDate)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate()
+                    localDate.atStartOfDay(ZoneOffset.UTC)
+                        .toInstant()
+                        .toEpochMilli()
+                }
+
                 DatePickerDialog(
                     onDismissRequest = { showDatePicker = false },
                     confirmButton = {
@@ -237,7 +248,7 @@ fun AddEditCreditCardItemScreen(
                     }
                 ) {
                     val datePickerState = rememberDatePickerState(
-                        initialSelectedDateMillis = uiState.purchaseDate
+                        initialSelectedDateMillis = initialDateUtc
                     )
                     DatePicker(
                         state = datePickerState,
@@ -246,7 +257,14 @@ fun AddEditCreditCardItemScreen(
 
                     LaunchedEffect(datePickerState.selectedDateMillis) {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            viewModel.onPurchaseDateChange(millis)
+                            // DatePicker returns UTC midnight, convert to local midnight
+                            val localDate = Instant.ofEpochMilli(millis)
+                                .atZone(ZoneOffset.UTC)
+                                .toLocalDate()
+                            val localMillis = localDate.atStartOfDay(ZoneId.systemDefault())
+                                .toInstant()
+                                .toEpochMilli()
+                            viewModel.onPurchaseDateChange(localMillis)
                         }
                     }
                 }
