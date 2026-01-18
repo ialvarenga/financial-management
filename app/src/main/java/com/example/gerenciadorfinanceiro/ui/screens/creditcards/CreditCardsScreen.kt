@@ -46,7 +46,7 @@ fun CreditCardsScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (uiState.cards.isEmpty()) {
+        } else if (uiState.cardsWithBills.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -78,13 +78,44 @@ fun CreditCardsScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(uiState.cards, key = { it.id }) { card ->
+                items(uiState.cardsWithBills, key = { it.card.id }) { cardWithBill ->
                     CreditCardItem(
-                        card = card,
-                        onClick = { onNavigateToDetail(card.id) },
-                        onEdit = { onNavigateToAddEdit(card.id) },
-                        onDelete = { cardToDelete = card }
+                        card = cardWithBill.card,
+                        currentBillAmount = cardWithBill.currentBillAmount,
+                        onClick = { onNavigateToDetail(cardWithBill.card.id) },
+                        onEdit = { onNavigateToAddEdit(cardWithBill.card.id) },
+                        onDelete = { cardToDelete = cardWithBill.card }
                     )
+                }
+
+                if (uiState.cardsWithBills.isNotEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Total Fatura Atual",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = uiState.totalCurrentBills.toReais(),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -116,6 +147,7 @@ fun CreditCardsScreen(
 @Composable
 fun CreditCardItem(
     card: CreditCard,
+    currentBillAmount: Long,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -183,7 +215,7 @@ fun CreditCardItem(
                 }
             }
 
-            Divider()
+            HorizontalDivider()
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -201,14 +233,26 @@ fun CreditCardItem(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                Column(horizontalAlignment = Alignment.End) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Fechamento/Vencimento",
+                        text = "Fatura Atual",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Dia ${card.closingDay} / Dia ${card.dueDay}",
+                        text = currentBillAmount.toReais(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (currentBillAmount > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "Fech./Venc.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Dia ${card.closingDay} / ${card.dueDay}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

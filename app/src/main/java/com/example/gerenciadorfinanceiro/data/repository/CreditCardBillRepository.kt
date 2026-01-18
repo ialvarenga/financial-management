@@ -53,4 +53,7 @@ class CreditCardBillRepository @Inject constructor(
 
     suspend fun updateTotalAmount(id: Long, amount: Long) =
         billDao.updateTotalAmount(id, amount)
+
+    fun getAllOpenBills(): Flow<List<CreditCardBill>> =
+        billDao.getAllOpenBills()
 }

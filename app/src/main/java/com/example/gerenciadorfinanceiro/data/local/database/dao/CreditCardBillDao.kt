@@ -61,4 +61,12 @@ interface CreditCardBillDao {
 
     @Query("UPDATE credit_card_bills SET totalAmount = :amount WHERE id = :id")
     suspend fun updateTotalAmount(id: Long, amount: Long)
+
+    @Query("SELECT * FROM credit_card_bills WHERE status = 'OPEN' ORDER BY year ASC, month ASC")
+    fun getAllOpenBills(): Flow<List<CreditCardBill>>
 }
+
+data class CardBillTotal(
+    val creditCardId: Long,
+    val totalAmount: Long
+)

@@ -6,6 +6,8 @@ import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.model.RecurrenceCount
 import kotlinx.coroutines.flow.Flow
 
+// Reusing CardBillTotal from CreditCardBillDao
+
 data class CreditCardCategoryTotal(
     val category: Category,
     val total: Long,
@@ -71,6 +73,15 @@ interface CreditCardItemDao {
         AND bills.status != 'PAID'
     """)
     fun getTotalUnpaidItemsByCard(creditCardId: Long): Flow<Long>
+
+    @Query("""
+        SELECT bills.creditCardId, COALESCE(SUM(items.amount), 0) as totalAmount
+        FROM credit_card_items items
+        INNER JOIN credit_card_bills bills ON items.creditCardBillId = bills.id
+        WHERE bills.month = :month AND bills.year = :year
+        GROUP BY bills.creditCardId
+    """)
+    fun getCurrentMonthTotalsPerCard(month: Int, year: Int): Flow<List<CardBillTotal>>
 
     @Query("""
         SELECT items.category, SUM(items.amount) as total, COUNT(*) as count
