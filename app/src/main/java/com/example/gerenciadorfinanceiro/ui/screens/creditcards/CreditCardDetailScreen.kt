@@ -1,8 +1,10 @@
 package com.example.gerenciadorfinanceiro.ui.screens.creditcards
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -304,12 +306,57 @@ fun CreditCardDetailScreen(
                     }
                 }
 
-                // Bill History Section
+                // Bill History Section Header with Sort Toggle
                 item {
-                    Text(
-                        text = "Histórico de Faturas",
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Histórico de Faturas",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        IconButton(
+                            onClick = {
+                                viewModel.setSortOrder(
+                                    if (uiState.sortOrder == BillSortOrder.NEWEST_FIRST)
+                                        BillSortOrder.OLDEST_FIRST
+                                    else
+                                        BillSortOrder.NEWEST_FIRST
+                                )
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.sortOrder == BillSortOrder.NEWEST_FIRST)
+                                    Icons.Default.ArrowDownward
+                                else
+                                    Icons.Default.ArrowUpward,
+                                contentDescription = if (uiState.sortOrder == BillSortOrder.NEWEST_FIRST)
+                                    "Ordenar mais antigas primeiro"
+                                else
+                                    "Ordenar mais recentes primeiro"
+                            )
+                        }
+                    }
+                }
+
+                // Status Filter Chips
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        BillStatusFilter.entries.forEach { filter ->
+                            FilterChip(
+                                selected = uiState.statusFilter == filter,
+                                onClick = { viewModel.setStatusFilter(filter) },
+                                label = { Text(filter.displayName) }
+                            )
+                        }
+                    }
                 }
 
                 if (uiState.billHistory.isEmpty()) {

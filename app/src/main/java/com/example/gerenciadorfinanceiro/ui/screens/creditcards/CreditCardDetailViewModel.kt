@@ -18,6 +18,19 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 
+enum class BillStatusFilter(val displayName: String) {
+    ALL("Todas"),
+    OPEN("Aberta"),
+    CLOSED("Fechada"),
+    PAID("Paga"),
+    OVERDUE("Atrasada")
+}
+
+enum class BillSortOrder {
+    NEWEST_FIRST,
+    OLDEST_FIRST
+}
+
 data class CreditCardDetailUiState(
     val card: CreditCard? = null,
     val currentBill: CreditCardBill? = null,
@@ -26,6 +39,8 @@ data class CreditCardDetailUiState(
     val billItems: Map<Long, List<CreditCardItem>> = emptyMap(),  // Map of bill ID to items
     val usedLimit: Long = 0,  // Total of unpaid bills (in cents)
     val availableLimit: Long = 0,  // creditLimit - usedLimit (in cents)
+    val statusFilter: BillStatusFilter = BillStatusFilter.ALL,
+    val sortOrder: BillSortOrder = BillSortOrder.NEWEST_FIRST,
     val isLoading: Boolean = true
 )
 
@@ -46,11 +61,17 @@ class CreditCardDetailViewModel @Inject constructor(
     // Flow of active accounts for bill payment selection
     val activeAccounts = accountRepository.getActiveAccounts()
 
+    // Filter and sort state
+    private val _statusFilter = MutableStateFlow(BillStatusFilter.ALL)
+    private val _sortOrder = MutableStateFlow(BillSortOrder.NEWEST_FIRST)
+
     val uiState: StateFlow<CreditCardDetailUiState> = combine(
         creditCardRepository.getByIdFlow(cardId),
         billRepository.getBillsByCard(cardId),
-        itemRepository.getTotalUnpaidItemsByCard(cardId)
-    ) { card, bills, usedLimit ->
+        itemRepository.getTotalUnpaidItemsByCard(cardId),
+        _statusFilter,
+        _sortOrder
+    ) { card, bills, usedLimit, statusFilter, sortOrder ->
         val now = LocalDate.now()
         val currentMonthBill = bills.firstOrNull {
             it.month == now.monthValue && it.year == now.year
@@ -69,14 +90,31 @@ class CreditCardDetailViewModel @Inject constructor(
         // Calculate available limit
         val availableLimit = (card?.creditLimit ?: 0) - usedLimit
 
+        // Apply status filter
+        val filteredBills = when (statusFilter) {
+            BillStatusFilter.ALL -> bills
+            BillStatusFilter.OPEN -> bills.filter { it.status == BillStatus.OPEN }
+            BillStatusFilter.CLOSED -> bills.filter { it.status == BillStatus.CLOSED }
+            BillStatusFilter.PAID -> bills.filter { it.status == BillStatus.PAID }
+            BillStatusFilter.OVERDUE -> bills.filter { it.status == BillStatus.OVERDUE }
+        }
+
+        // Apply sort order
+        val sortedBills = when (sortOrder) {
+            BillSortOrder.NEWEST_FIRST -> filteredBills.sortedByDescending { it.year * 100 + it.month }
+            BillSortOrder.OLDEST_FIRST -> filteredBills.sortedBy { it.year * 100 + it.month }
+        }
+
         CreditCardDetailUiState(
             card = card,
             currentBill = currentBill,
             currentBillItems = emptyList(),
-            billHistory = bills,
+            billHistory = sortedBills,
             billItems = emptyMap(),
             usedLimit = usedLimit,
             availableLimit = availableLimit.coerceAtLeast(0),
+            statusFilter = statusFilter,
+            sortOrder = sortOrder,
             isLoading = false
         )
     }.flatMapLatest { state ->
@@ -161,5 +199,13 @@ class CreditCardDetailViewModel @Inject constructor(
         viewModelScope.launch {
             markBillAsPaidUseCase(billId, accountId)
         }
+    }
+
+    fun setStatusFilter(filter: BillStatusFilter) {
+        _statusFilter.value = filter
+    }
+
+    fun setSortOrder(order: BillSortOrder) {
+        _sortOrder.value = order
     }
 }
