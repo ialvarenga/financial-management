@@ -2,6 +2,7 @@ package com.example.gerenciadorfinanceiro.domain.notification
 
 import android.util.Log
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
+import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import com.example.gerenciadorfinanceiro.util.toCents
 import javax.inject.Inject
@@ -36,7 +37,8 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
                 timestamp = timestamp,
                 transactionType = null,
                 lastFourDigits = null,
-                isBillPayment = true
+                isBillPayment = true,
+                paymentMethod = PaymentMethod.CREDIT_CARD
             )
         }
 
@@ -64,7 +66,8 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
                     timestamp = timestamp,
                     transactionType = if (isCredit) null else TransactionType.EXPENSE,
                     lastFourDigits = null,
-                    installments = installments
+                    installments = installments,
+                    paymentMethod = if (isCredit) PaymentMethod.CREDIT_CARD else PaymentMethod.DEBIT
                 )
             }
         }
@@ -82,7 +85,8 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
                 description = place,
                 timestamp = timestamp,
                 transactionType = null,  // Credit card purchase, not a direct transaction
-                lastFourDigits = lastFourDigits
+                lastFourDigits = lastFourDigits,
+                paymentMethod = PaymentMethod.CREDIT_CARD
             )
         }
 
@@ -98,7 +102,8 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
                 description = "Compra débito - $place",
                 timestamp = timestamp,
                 transactionType = TransactionType.EXPENSE,
-                lastFourDigits = null
+                lastFourDigits = null,
+                paymentMethod = PaymentMethod.DEBIT
             )
         }
 
@@ -114,7 +119,8 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
                 description = "Reembolso PIX recebido de $senderName",
                 timestamp = timestamp,
                 transactionType = TransactionType.INCOME,
-                lastFourDigits = null
+                lastFourDigits = null,
+                paymentMethod = PaymentMethod.PIX
             )
         }
 
@@ -129,7 +135,8 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
                 description = "Transferência recebida",
                 timestamp = timestamp,
                 transactionType = TransactionType.INCOME,
-                lastFourDigits = null
+                lastFourDigits = null,
+                paymentMethod = PaymentMethod.PIX
             )
         }
 
@@ -144,7 +151,8 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
                 description = "Transferência enviada",
                 timestamp = timestamp,
                 transactionType = TransactionType.EXPENSE,
-                lastFourDigits = null
+                lastFourDigits = null,
+                paymentMethod = PaymentMethod.PIX
             )
         }
 

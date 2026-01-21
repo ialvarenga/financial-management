@@ -3,6 +3,7 @@ package com.example.gerenciadorfinanceiro.domain.usecase
 import android.util.Log
 import com.example.gerenciadorfinanceiro.data.repository.ProcessedNotificationRepository
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
+import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.notification.NotificationParser
 import javax.inject.Inject
 
@@ -10,7 +11,6 @@ class ProcessNotificationUseCase @Inject constructor(
     private val parsers: Set<@JvmSuppressWildcards NotificationParser>,
     private val processedNotificationRepository: ProcessedNotificationRepository,
     private val createBankTransactionUseCase: CreateBankTransactionUseCase,
-    private val createWalletPurchaseUseCase: CreateWalletPurchaseUseCase,
     private val createCreditCardPurchaseUseCase: CreateCreditCardPurchaseUseCase,
     private val markBillAsPaidUseCase: MarkBillAsPaidUseCase,
     private val checkDuplicateNotificationUseCase: CheckDuplicateNotificationUseCase
@@ -48,13 +48,8 @@ class ProcessNotificationUseCase @Inject constructor(
                 return Result.success(Unit)
             }
 
-            // Determine if this is a credit card item or a transaction
-            val isCreditCardItem = source == NotificationSource.GOOGLE_WALLET ||
-                    parsed.lastFourDigits != null ||
-                    parsed.transactionType == null
-
             // Check for duplicates in existing data before creating
-            if (isCreditCardItem) {
+            if (parsed.paymentMethod == PaymentMethod.CREDIT_CARD) {
                 if (checkDuplicateNotificationUseCase.isCreditCardItemDuplicate(parsed)) {
                     Log.d(TAG, "Skipping duplicate credit card item: ${parsed.description}")
                     return Result.success(Unit)
@@ -66,23 +61,10 @@ class ProcessNotificationUseCase @Inject constructor(
                 }
             }
 
-            val processedNotification = when {
-                source == NotificationSource.GOOGLE_WALLET -> {
-                    createWalletPurchaseUseCase(parsed, notificationKey)
-                }
-                parsed.lastFourDigits != null -> {
-                    // Credit card purchase with last 4 digits
-                    createCreditCardPurchaseUseCase(parsed, notificationKey)
-                }
-                parsed.transactionType == null -> {
-                    // Credit card purchase without last 4 digits (Nupay, Itaú credit card, etc.)
-                    createCreditCardPurchaseUseCase(parsed, notificationKey)
-                }
-                source == NotificationSource.ITAU || source == NotificationSource.NUBANK -> {
-                    // Bank transaction (PIX, debit, etc.)
-                    createBankTransactionUseCase(parsed, notificationKey)
-                }
-                else -> throw IllegalArgumentException("Unsupported notification source: $source")
+            val processedNotification = when (parsed.paymentMethod) {
+                PaymentMethod.CREDIT_CARD -> createCreditCardPurchaseUseCase(parsed, notificationKey)
+                PaymentMethod.PIX, PaymentMethod.DEBIT, PaymentMethod.TRANSFER -> createBankTransactionUseCase(parsed, notificationKey)
+                else -> throw IllegalArgumentException("Unsupported payment method: ${parsed.paymentMethod}")
             }
 
             processedNotificationRepository.insert(processedNotification)

@@ -3,6 +3,7 @@ package com.example.gerenciadorfinanceiro.domain.notification
 import android.util.Log
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
+import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.util.toCents
 import javax.inject.Inject
 
@@ -34,7 +35,8 @@ class ItauNotificationParser @Inject constructor() : NotificationParser {
                 description = "PIX recebido",
                 timestamp = timestamp,
                 transactionType = TransactionType.INCOME,
-                lastFourDigits = null
+                lastFourDigits = null,
+                paymentMethod = PaymentMethod.PIX
             )
         }
 
@@ -49,7 +51,8 @@ class ItauNotificationParser @Inject constructor() : NotificationParser {
                 description = "PIX enviado",
                 timestamp = timestamp,
                 transactionType = TransactionType.EXPENSE,
-                lastFourDigits = null
+                lastFourDigits = null,
+                paymentMethod = PaymentMethod.PIX
             )
         }
 
@@ -64,8 +67,9 @@ class ItauNotificationParser @Inject constructor() : NotificationParser {
                 amount = amount,
                 description = place,
                 timestamp = timestamp,
-                transactionType = null,  // Credit card purchase, not a direct transaction
-                lastFourDigits = null
+                transactionType = TransactionType.EXPENSE,
+                lastFourDigits = null, // not provided in notification
+                paymentMethod = PaymentMethod.CREDIT_CARD
             )
         }
 

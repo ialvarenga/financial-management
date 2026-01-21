@@ -6,7 +6,6 @@ import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
 import com.example.gerenciadorfinanceiro.domain.model.Bank
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
-import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
 import com.example.gerenciadorfinanceiro.domain.notification.ParsedNotification
 import javax.inject.Inject
@@ -35,7 +34,7 @@ class CreateBankTransactionUseCase @Inject constructor(
             amount = parsed.amount,
             type = parsed.transactionType!!,
             category = Category.OTHER,
-            paymentMethod = PaymentMethod.PIX,
+            paymentMethod = parsed.paymentMethod,
             status = TransactionStatus.PENDING,
             description = parsed.description,
             date = parsed.timestamp,

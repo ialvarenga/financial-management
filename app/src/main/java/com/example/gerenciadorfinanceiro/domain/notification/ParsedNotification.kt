@@ -1,6 +1,7 @@
 package com.example.gerenciadorfinanceiro.domain.notification
 
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
+import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 
 data class ParsedNotification(
@@ -11,5 +12,6 @@ data class ParsedNotification(
     val transactionType: TransactionType? = null,
     val lastFourDigits: String? = null,
     val isBillPayment: Boolean = false,
-    val installments: Int = 1
+    val installments: Int = 1,
+    val paymentMethod: PaymentMethod
 )

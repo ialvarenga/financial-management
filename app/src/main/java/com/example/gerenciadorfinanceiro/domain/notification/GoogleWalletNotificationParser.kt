@@ -2,6 +2,7 @@ package com.example.gerenciadorfinanceiro.domain.notification
 
 import android.util.Log
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
+import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.util.toCents
 import javax.inject.Inject
 
@@ -40,7 +41,8 @@ class GoogleWalletNotificationParser @Inject constructor() : NotificationParser 
             description = description,
             timestamp = timestamp,
             transactionType = null,  // Credit card purchase, not a direct transaction
-            lastFourDigits = lastFour
+            lastFourDigits = lastFour,
+            paymentMethod = PaymentMethod.CREDIT_CARD
         )
     }
 
