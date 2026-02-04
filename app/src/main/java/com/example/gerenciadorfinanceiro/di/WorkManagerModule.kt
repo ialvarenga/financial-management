@@ -13,9 +13,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.time.Duration
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -38,14 +35,10 @@ object WorkManagerModule {
             .setRequiresBatteryNotLow(true)  // Don't run if battery is low
             .build()
 
-        // Calculate initial delay to run at midnight
-        val currentTime = LocalTime.now()
-        val midnight = LocalTime.MIDNIGHT
-        val initialDelayMinutes = if (currentTime.isBefore(midnight)) {
-            Duration.between(currentTime, midnight).toMinutes()
-        } else {
-            Duration.between(currentTime, midnight.plusHours(24)).toMinutes()
-        }
+        // Calculate initial delay to run at the next midnight
+        val now = java.time.ZonedDateTime.now()
+        val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay(now.zone)
+        val initialDelayMinutes = Duration.between(now, nextMidnight).toMinutes()
 
         // Create periodic work request that runs every 24 hours
         val billClosureWork = PeriodicWorkRequestBuilder<BillClosureWorker>(
@@ -59,10 +52,10 @@ object WorkManagerModule {
             .addTag(BillClosureWorker.TAG)
             .build()
 
-        // Enqueue the work with KEEP policy to avoid duplicate scheduling
+        // Enqueue the work with UPDATE policy to pick up schedule changes
         workManager.enqueueUniquePeriodicWork(
             BillClosureWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,  // Keep existing work if already scheduled
+            ExistingPeriodicWorkPolicy.UPDATE,  // Update existing work with new parameters
             billClosureWork
         )
 
