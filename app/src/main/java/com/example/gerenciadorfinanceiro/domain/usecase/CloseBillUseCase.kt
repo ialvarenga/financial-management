@@ -145,6 +145,36 @@ class CloseBillUseCase @Inject constructor(
         return totalClosed
     }
 
+    /**
+     * Manually closes a specific bill regardless of closing date.
+     * Used when user explicitly requests to close a bill.
+     * @param billId The ID of the bill to close
+     * @param creditCard The credit card that owns the bill
+     * @return true if the bill was closed, false otherwise
+     */
+    suspend fun closeBillManually(billId: Long, creditCard: CreditCard): Boolean {
+        try {
+            val bill = billRepository.getById(billId) ?: return false
+
+            if (bill.status != BillStatus.OPEN) {
+                Log.d(TAG, "Bill $billId is already ${bill.status}, cannot close manually")
+                return false
+            }
+
+            billRepository.updateStatus(billId, BillStatus.CLOSED)
+            Log.i(TAG, "Manually closed bill $billId for card ${creditCard.name} (${bill.month}/${bill.year})")
+
+            // Ensure next month's bill exists
+            val nextMonth = LocalDate.of(bill.year, bill.month, 1).plusMonths(1)
+            getOrCreateBillUseCase(creditCard.id, nextMonth.monthValue, nextMonth.year)
+
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error manually closing bill $billId", e)
+            return false
+        }
+    }
+
     companion object {
         private const val TAG = "CloseBillUseCase"
     }

@@ -10,6 +10,7 @@ import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepositor
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardItemRepository
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardRepository
 import com.example.gerenciadorfinanceiro.domain.model.BillStatus
+import com.example.gerenciadorfinanceiro.domain.usecase.CloseBillUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetOrCreateBillUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -52,6 +53,7 @@ class CreditCardDetailViewModel @Inject constructor(
     private val itemRepository: CreditCardItemRepository,
     private val accountRepository: com.example.gerenciadorfinanceiro.data.repository.AccountRepository,
     private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
+    private val closeBillUseCase: CloseBillUseCase,
     private val markBillAsPaidUseCase: com.example.gerenciadorfinanceiro.domain.usecase.MarkBillAsPaidUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -198,6 +200,14 @@ class CreditCardDetailViewModel @Inject constructor(
     fun markBillAsPaid(billId: Long, accountId: Long) {
         viewModelScope.launch {
             markBillAsPaidUseCase(billId, accountId)
+        }
+    }
+
+    fun closeBill(billId: Long) {
+        viewModelScope.launch {
+            uiState.value.card?.let { card ->
+                closeBillUseCase.closeBillManually(billId, card)
+            }
         }
     }
 

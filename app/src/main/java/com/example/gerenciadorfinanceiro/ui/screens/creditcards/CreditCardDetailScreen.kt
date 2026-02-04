@@ -1,5 +1,8 @@
 package com.example.gerenciadorfinanceiro.ui.screens.creditcards
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,7 +27,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CreditCardDetailScreen(
     onNavigateBack: () -> Unit,
@@ -43,28 +46,71 @@ fun CreditCardDetailScreen(
     var showMarkAsPaidDialog by remember { mutableStateOf(false) }
     var billToMarkAsPaid by remember { mutableStateOf<Long?>(null) }
     var selectedAccountId by remember { mutableStateOf<Long?>(null) }
+    var selectedBillId by remember { mutableStateOf<Long?>(null) }
+    var showCloseBillDialog by remember { mutableStateOf(false) }
+
+    // Find the selected bill to check its status
+    val selectedBill = selectedBillId?.let { id ->
+        if (uiState.currentBill?.id == id) uiState.currentBill
+        else uiState.billHistory.find { it.id == id }
+    }
+
+    // Back handler to clear selection
+    BackHandler(enabled = selectedBillId != null) {
+        selectedBillId = null
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(uiState.card?.name ?: "Detalhes do Cartão") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+            if (selectedBillId != null) {
+                TopAppBar(
+                    title = { Text("Fatura selecionada") },
+                    navigationIcon = {
+                        IconButton(onClick = { selectedBillId = null }) {
+                            Icon(Icons.Default.Close, contentDescription = "Cancelar seleção")
+                        }
+                    },
+                    actions = {
+                        if (selectedBill?.status == BillStatus.OPEN) {
+                            IconButton(onClick = { showCloseBillDialog = true }) {
+                                Icon(Icons.Default.Lock, contentDescription = "Fechar fatura")
+                            }
+                        }
+                        if (selectedBill?.status == BillStatus.CLOSED) {
+                            IconButton(onClick = {
+                                billToMarkAsPaid = selectedBillId
+                                showMarkAsPaidDialog = true
+                                selectedBillId = null
+                            }) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = "Marcar como paga")
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+            } else {
+                TopAppBar(
+                    title = { Text(uiState.card?.name ?: "Detalhes do Cartão") },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = onNavigateToImportCsv) {
+                            Icon(Icons.Default.FileUpload, contentDescription = "Importar CSV")
+                        }
+                        IconButton(onClick = onNavigateToEdit) {
+                            Icon(Icons.Default.Edit, contentDescription = "Editar")
+                        }
+                        IconButton(onClick = { showDeleteDialog = true }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Excluir")
+                        }
                     }
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToImportCsv) {
-                        Icon(Icons.Default.FileUpload, contentDescription = "Importar CSV")
-                    }
-                    IconButton(onClick = onNavigateToEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar")
-                    }
-                    IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Excluir")
-                    }
-                }
-            )
+                )
+            }
         },
         floatingActionButton = {
             uiState.currentBill?.let { bill ->
@@ -237,8 +283,16 @@ fun CreditCardDetailScreen(
                             BillCard(
                                 bill = currentBill,
                                 isExpanded = isCurrentBillExpanded,
+                                isSelected = selectedBillId == currentBill.id,
                                 onClick = {
-                                    isCurrentBillExpanded = !isCurrentBillExpanded
+                                    if (selectedBillId != null) {
+                                        selectedBillId = null
+                                    } else {
+                                        isCurrentBillExpanded = !isCurrentBillExpanded
+                                    }
+                                },
+                                onLongClick = {
+                                    selectedBillId = currentBill.id
                                 },
                                 onMarkAsPaid = {
                                     billToMarkAsPaid = currentBill.id
@@ -389,12 +443,20 @@ fun CreditCardDetailScreen(
                             BillCard(
                                 bill = bill,
                                 isExpanded = isExpanded,
+                                isSelected = selectedBillId == bill.id,
                                 onClick = {
-                                    expandedBillIds = if (isExpanded) {
-                                        expandedBillIds - bill.id
+                                    if (selectedBillId != null) {
+                                        selectedBillId = null
                                     } else {
-                                        expandedBillIds + bill.id
+                                        expandedBillIds = if (isExpanded) {
+                                            expandedBillIds - bill.id
+                                        } else {
+                                            expandedBillIds + bill.id
+                                        }
                                     }
+                                },
+                                onLongClick = {
+                                    selectedBillId = bill.id
                                 },
                                 onMarkAsPaid = {
                                     billToMarkAsPaid = bill.id
@@ -502,6 +564,33 @@ fun CreditCardDetailScreen(
         )
     }
 
+    // Close bill confirmation dialog
+    if (showCloseBillDialog && selectedBillId != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showCloseBillDialog = false
+            },
+            title = { Text("Fechar fatura") },
+            text = { Text("Deseja fechar esta fatura? Após fechada, ela ficará aguardando pagamento.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedBillId?.let { viewModel.closeBill(it) }
+                    showCloseBillDialog = false
+                    selectedBillId = null
+                }) {
+                    Text("Fechar", color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showCloseBillDialog = false
+                }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     // Mark as paid confirmation dialog with account selection
     if (showMarkAsPaidDialog) {
         var expandedAccountDropdown by remember { mutableStateOf(false) }
@@ -600,11 +689,14 @@ fun CreditCardDetailScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BillCard(
     bill: CreditCardBill,
     isExpanded: Boolean = false,
+    isSelected: Boolean = false,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     onMarkAsPaid: (() -> Unit)? = null
 ) {
     val formatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale("pt", "BR"))
@@ -614,8 +706,19 @@ fun BillCard(
         .replaceFirstChar { it.uppercase() }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = { onClick?.invoke() }
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = { onClick?.invoke() },
+                onLongClick = { onLongClick?.invoke() }
+            ),
+        colors = if (isSelected) {
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        } else {
+            CardDefaults.cardColors()
+        }
     ) {
         Column(
             modifier = Modifier
