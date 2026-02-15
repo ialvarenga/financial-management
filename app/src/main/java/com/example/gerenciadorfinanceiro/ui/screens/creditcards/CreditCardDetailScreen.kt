@@ -41,8 +41,6 @@ fun CreditCardDetailScreen(
     val activeAccounts by viewModel.activeAccounts.collectAsState(initial = emptyList())
     var showDeleteDialog by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<CreditCardItem?>(null) }
-    var expandedBillIds by remember { mutableStateOf(setOf<Long>()) }
-    var isCurrentBillExpanded by remember { mutableStateOf(false) }
     var showMarkAsPaidDialog by remember { mutableStateOf(false) }
     var billToMarkAsPaid by remember { mutableStateOf<Long?>(null) }
     var selectedAccountId by remember { mutableStateOf<Long?>(null) }
@@ -282,13 +280,13 @@ fun CreditCardDetailScreen(
                         ) {
                             BillCard(
                                 bill = currentBill,
-                                isExpanded = isCurrentBillExpanded,
+                                isExpanded = uiState.isCurrentBillExpanded,
                                 isSelected = selectedBillId == currentBill.id,
                                 onClick = {
                                     if (selectedBillId != null) {
                                         selectedBillId = null
                                     } else {
-                                        isCurrentBillExpanded = !isCurrentBillExpanded
+                                        viewModel.toggleCurrentBillExpanded()
                                     }
                                 },
                                 onLongClick = {
@@ -301,7 +299,7 @@ fun CreditCardDetailScreen(
                             )
 
                             // Show items when expanded
-                            if (isCurrentBillExpanded) {
+                            if (uiState.isCurrentBillExpanded) {
                                 if (uiState.currentBillItems.isEmpty()) {
                                     Card(
                                         modifier = Modifier
@@ -434,7 +432,7 @@ fun CreditCardDetailScreen(
                     }
                 } else {
                     items(uiState.billHistory) { bill ->
-                        val isExpanded = expandedBillIds.contains(bill.id)
+                        val isExpanded = uiState.expandedBillIds.contains(bill.id)
                         val billItems = uiState.billItems[bill.id] ?: emptyList()
 
                         Column(
@@ -448,11 +446,7 @@ fun CreditCardDetailScreen(
                                     if (selectedBillId != null) {
                                         selectedBillId = null
                                     } else {
-                                        expandedBillIds = if (isExpanded) {
-                                            expandedBillIds - bill.id
-                                        } else {
-                                            expandedBillIds + bill.id
-                                        }
+                                        viewModel.toggleBillExpanded(bill.id)
                                     }
                                 },
                                 onLongClick = {

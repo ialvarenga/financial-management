@@ -15,6 +15,7 @@ fun String.toCents(): Long? {
     return try {
         val cleaned = this
             .replace("R$", "")
+            .replace(" ", "")
             .replace(".", "")
             .replace(",", ".")
             .trim()

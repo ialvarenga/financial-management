@@ -42,6 +42,8 @@ data class CreditCardDetailUiState(
     val availableLimit: Long = 0,  // creditLimit - usedLimit (in cents)
     val statusFilter: BillStatusFilter = BillStatusFilter.ALL,
     val sortOrder: BillSortOrder = BillSortOrder.NEWEST_FIRST,
+    val expandedBillIds: Set<Long> = emptySet(),
+    val isCurrentBillExpanded: Boolean = false,
     val isLoading: Boolean = true
 )
 
@@ -67,13 +69,26 @@ class CreditCardDetailViewModel @Inject constructor(
     private val _statusFilter = MutableStateFlow(BillStatusFilter.ALL)
     private val _sortOrder = MutableStateFlow(BillSortOrder.NEWEST_FIRST)
 
+    // Expansion state (persists across navigation)
+    private val _expandedBillIds = MutableStateFlow(emptySet<Long>())
+    private val _isCurrentBillExpanded = MutableStateFlow(false)
+
     val uiState: StateFlow<CreditCardDetailUiState> = combine(
         creditCardRepository.getByIdFlow(cardId),
         billRepository.getBillsByCard(cardId),
         itemRepository.getTotalUnpaidItemsByCard(cardId),
         _statusFilter,
-        _sortOrder
-    ) { card, bills, usedLimit, statusFilter, sortOrder ->
+        _sortOrder,
+        _expandedBillIds,
+        _isCurrentBillExpanded
+    ) { values ->
+        val card = values[0] as CreditCard?
+        val bills = values[1] as List<CreditCardBill>
+        val usedLimit = values[2] as Long
+        val statusFilter = values[3] as BillStatusFilter
+        val sortOrder = values[4] as BillSortOrder
+        val expandedBillIds = values[5] as Set<Long>
+        val isCurrentBillExpanded = values[6] as Boolean
         val now = LocalDate.now()
         val currentMonthBill = bills.firstOrNull {
             it.month == now.monthValue && it.year == now.year
@@ -117,6 +132,8 @@ class CreditCardDetailViewModel @Inject constructor(
             availableLimit = availableLimit.coerceAtLeast(0),
             statusFilter = statusFilter,
             sortOrder = sortOrder,
+            expandedBillIds = expandedBillIds,
+            isCurrentBillExpanded = isCurrentBillExpanded,
             isLoading = false
         )
     }.flatMapLatest { state ->
@@ -217,5 +234,17 @@ class CreditCardDetailViewModel @Inject constructor(
 
     fun setSortOrder(order: BillSortOrder) {
         _sortOrder.value = order
+    }
+
+    fun toggleCurrentBillExpanded() {
+        _isCurrentBillExpanded.value = !_isCurrentBillExpanded.value
+    }
+
+    fun toggleBillExpanded(billId: Long) {
+        _expandedBillIds.value = if (_expandedBillIds.value.contains(billId)) {
+            _expandedBillIds.value - billId
+        } else {
+            _expandedBillIds.value + billId
+        }
     }
 }
