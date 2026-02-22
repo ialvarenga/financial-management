@@ -27,6 +27,7 @@ class GetMonthlyExpensesUseCase @Inject constructor(
      * @param month The month (1-12)
      * @param year The year
      * @param excludeConfirmed If true, excludes recurrences that have already been confirmed as transactions/credit card items
+     *                         (including skipped recurrences, which are stored as transactions with isSkippedRecurrence=true)
      * @return Flow of projected recurrences for the given month
      */
     operator fun invoke(month: Int, year: Int, excludeConfirmed: Boolean = false): Flow<List<ProjectedRecurrence>> {
@@ -48,6 +49,8 @@ class GetMonthlyExpensesUseCase @Inject constructor(
         }
 
         // Combine recurrences with confirmed IDs (for monthly/yearly) and counts (for weekly/daily)
+        // Note: Skipped recurrences are also transactions (with isSkippedRecurrence=true),
+        // so they're automatically included in these queries
         return combine(
             recurrenceRepository.getActiveRecurrences(),
             transactionRepository.getRecurrenceIdsWithTransactionsInDateRange(startMillis, endMillis),
@@ -80,7 +83,6 @@ class GetMonthlyExpensesUseCase @Inject constructor(
                         val remainingCount = (expectedCount - actualCount).coerceAtLeast(0)
 
                         if (remainingCount > 0) {
-                            // Return the first N occurrences as projected
                             projectRecurrenceForMonth(recurrence, startDate, endDate).take(remainingCount)
                         } else {
                             emptyList()

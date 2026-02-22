@@ -14,8 +14,10 @@ import com.example.gerenciadorfinanceiro.domain.usecase.DeleteTransferUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyExpensesUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyTransactionsUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyTransfersUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.SkipRecurrenceUseCase
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import com.example.gerenciadorfinanceiro.data.repository.TransactionRepository
+import com.example.gerenciadorfinanceiro.util.getMonthBounds
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -26,6 +28,7 @@ data class TransactionsUiState(
     val transactions: List<TransactionWithAccount> = emptyList(),
     val transfers: List<TransferWithAccounts> = emptyList(),
     val projectedRecurrences: List<ProjectedRecurrence> = emptyList(),
+    val skippedTransactions: List<TransactionWithAccount> = emptyList(),
     val filteredTransactions: List<TransactionWithAccount> = emptyList(),
     val accounts: List<Account> = emptyList(),
     val selectedMonth: Int = LocalDate.now().monthValue,
@@ -44,6 +47,7 @@ class TransactionsViewModel @Inject constructor(
     private val completeTransactionUseCase: CompleteTransactionUseCase,
     private val completeTransferUseCase: CompleteTransferUseCase,
     private val confirmRecurrencePaymentUseCase: ConfirmRecurrencePaymentUseCase,
+    private val skipRecurrenceUseCase: SkipRecurrenceUseCase,
     private val deleteTransferUseCase: DeleteTransferUseCase,
     private val transactionRepository: TransactionRepository,
     private val accountRepository: AccountRepository
@@ -60,30 +64,37 @@ class TransactionsViewModel @Inject constructor(
     ) { month, year, filterType ->
         Triple(month, year, filterType)
     }.flatMapLatest { (month, year, filterType) ->
+        val (startMillis, endMillis) = getMonthBounds(month, year)
+
         combine(
             getMonthlyTransactionsUseCase(month, year),
             getMonthlyExpensesUseCase(month, year, excludeConfirmed = true),
             getMonthlyTransfersUseCase(month, year),
-            accountRepository.getActiveAccounts()
-        ) { transactions, projectedRecurrences, transfers, accounts ->
+            accountRepository.getActiveAccounts(),
+            transactionRepository.getSkippedRecurrencesInDateRange(startMillis, endMillis)
+        ) { transactions, projectedRecurrences, transfers, accounts, skippedTransactions ->
+            // Filter out skipped transactions from the main transactions list
+            val regularTransactions = transactions.filter { !it.transaction.isSkippedRecurrence }
+
             val filtered = if (filterType != null) {
-                transactions.filter { it.transaction.type == filterType }
+                regularTransactions.filter { it.transaction.type == filterType }
             } else {
-                transactions
+                regularTransactions
             }
 
-            val totalIncome = transactions
+            val totalIncome = regularTransactions
                 .filter { it.transaction.type == TransactionType.INCOME }
                 .sumOf { it.transaction.amount }
 
-            val totalExpense = transactions
+            val totalExpense = regularTransactions
                 .filter { it.transaction.type == TransactionType.EXPENSE && it.transaction.status == com.example.gerenciadorfinanceiro.domain.model.TransactionStatus.COMPLETED }
                 .sumOf { it.transaction.amount }
 
             TransactionsUiState(
-                transactions = transactions,
+                transactions = regularTransactions,
                 transfers = transfers,
                 projectedRecurrences = projectedRecurrences,
+                skippedTransactions = skippedTransactions,
                 filteredTransactions = filtered,
                 accounts = accounts,
                 selectedMonth = month,
@@ -143,6 +154,18 @@ class TransactionsViewModel @Inject constructor(
                 markAsCompleted = true,
                 selectedAccountId = selectedAccountId
             )
+        }
+    }
+
+    fun skipRecurrence(projectedRecurrence: ProjectedRecurrence, reason: String? = null) {
+        viewModelScope.launch {
+            skipRecurrenceUseCase(projectedRecurrence, reason)
+        }
+    }
+
+    fun restoreSkippedRecurrence(transactionId: Long) {
+        viewModelScope.launch {
+            transactionRepository.deleteById(transactionId)
         }
     }
 }

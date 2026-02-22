@@ -197,4 +197,14 @@ interface TransactionDao {
         startDate: Long,
         endDate: Long
     ): Boolean
+
+    // Skipped recurrence queries
+    @androidx.room.Transaction
+    @Query("""
+        SELECT * FROM transactions
+        WHERE isSkippedRecurrence = 1
+        AND date BETWEEN :startDate AND :endDate
+        ORDER BY date DESC, createdAt DESC
+    """)
+    fun getSkippedRecurrencesInDateRange(startDate: Long, endDate: Long): Flow<List<TransactionWithAccount>>
 }

@@ -39,6 +39,8 @@ fun TransactionsScreen(
     var transferToDelete by remember { mutableStateOf<TransferWithAccounts?>(null) }
     var showMonthPicker by remember { mutableStateOf(false) }
     var showAddMenu by remember { mutableStateOf(false) }
+    var recurrenceToSkip by remember { mutableStateOf<ProjectedRecurrence?>(null) }
+    var skipReason by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -172,7 +174,7 @@ fun TransactionsScreen(
                 ) {
                     CircularProgressIndicator()
                 }
-            } else if (uiState.filteredTransactions.isEmpty() && uiState.projectedRecurrences.isEmpty() && uiState.transfers.isEmpty()) {
+            } else if (uiState.filteredTransactions.isEmpty() && uiState.projectedRecurrences.isEmpty() && uiState.transfers.isEmpty() && uiState.skippedTransactions.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -235,7 +237,25 @@ fun TransactionsScreen(
                                 accounts = uiState.accounts,
                                 onConfirm = { accountId ->
                                     viewModel.confirmRecurrence(projectedRecurrence, accountId)
-                                }
+                                },
+                                onSkip = { recurrenceToSkip = projectedRecurrence }
+                            )
+                        }
+                    }
+
+                    // Skipped recurrences section
+                    if (uiState.skippedTransactions.isNotEmpty()) {
+                        item(key = "skipped_header") {
+                            Text(
+                                text = "Recorrências Puladas",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            )
+                        }
+                        items(uiState.skippedTransactions, key = { "skipped_${it.transaction.id}" }) { skippedTransaction ->
+                            SkippedTransactionItem(
+                                transactionWithAccount = skippedTransaction,
+                                onRestore = { viewModel.restoreSkippedRecurrence(skippedTransaction.transaction.id) }
                             )
                         }
                     }
@@ -392,6 +412,51 @@ fun TransactionsScreen(
                 viewModel.selectMonth(month)
                 viewModel.selectYear(year)
                 showMonthPicker = false
+            }
+        )
+    }
+
+    // Skip recurrence dialog
+    recurrenceToSkip?.let { projectedRecurrence ->
+        AlertDialog(
+            onDismissRequest = {
+                recurrenceToSkip = null
+                skipReason = ""
+            },
+            title = { Text("Pular Recorrência") },
+            text = {
+                Column {
+                    Text(
+                        text = "Deseja pular '${projectedRecurrence.recurrence.description}' deste mês?",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = skipReason,
+                        onValueChange = { skipReason = it },
+                        label = { Text("Motivo (opcional)") },
+                        placeholder = { Text("ex: férias") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.skipRecurrence(projectedRecurrence, skipReason.takeIf { it.isNotBlank() })
+                    recurrenceToSkip = null
+                    skipReason = ""
+                }) {
+                    Text("Pular")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    recurrenceToSkip = null
+                    skipReason = ""
+                }) {
+                    Text("Cancelar")
+                }
             }
         )
     }
@@ -610,7 +675,8 @@ fun TransactionItem(
 fun ProjectedRecurrenceItem(
     projectedRecurrence: ProjectedRecurrence,
     accounts: List<com.example.gerenciadorfinanceiro.data.local.entity.Account>,
-    onConfirm: (Long?) -> Unit
+    onConfirm: (Long?) -> Unit,
+    onSkip: () -> Unit
 ) {
     val recurrence = projectedRecurrence.recurrence
     val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -665,17 +731,30 @@ fun ProjectedRecurrenceItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                AssistChip(
-                    onClick = {
-                        if (needsAccountSelection) {
-                            showAccountSelector = true
-                        } else {
-                            onConfirm(null)
-                        }
-                    },
-                    label = { Text("Confirmar", style = MaterialTheme.typography.labelSmall) },
-                    leadingIcon = { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AssistChip(
+                        onClick = {
+                            if (needsAccountSelection) {
+                                showAccountSelector = true
+                            } else {
+                                onConfirm(null)
+                            }
+                        },
+                        label = { Text("Confirmar", style = MaterialTheme.typography.labelSmall) },
+                        leadingIcon = { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    )
+                    AssistChip(
+                        onClick = onSkip,
+                        label = { Text("Pular", style = MaterialTheme.typography.labelSmall) },
+                        leadingIcon = { Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                        colors = AssistChipDefaults.assistChipColors(
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                }
             }
 
             Column(
@@ -872,6 +951,93 @@ fun TransferItem(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SkippedTransactionItem(
+    transactionWithAccount: TransactionWithAccount,
+    onRestore: () -> Unit
+) {
+    val transaction = transactionWithAccount.transaction
+    val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+    val skippedDate = Instant.ofEpochMilli(transaction.date)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.DoNotDisturb,
+                        contentDescription = "Pulada",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = transaction.description,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = transaction.category.displayName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+                Text(
+                    text = skippedDate.format(dateFormatter),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                )
+                if (!transaction.notes.isNullOrBlank()) {
+                    Text(
+                        text = "Motivo: ${transaction.notes}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                AssistChip(
+                    onClick = onRestore,
+                    label = { Text("Restaurar", style = MaterialTheme.typography.labelSmall) },
+                    leadingIcon = { Icon(Icons.Default.Undo, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = transaction.amount.toReais(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = when (transaction.type) {
+                        TransactionType.INCOME -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        TransactionType.EXPENSE -> MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                    }
+                )
             }
         }
     }

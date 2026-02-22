@@ -39,6 +39,7 @@ data class Transaction(
     val date: Long,  // transaction date in epoch millis
     val notes: String? = null,
     val recurrenceId: Long? = null,  // Links to parent recurrence if this transaction was generated from a recurrence
+    val isSkippedRecurrence: Boolean = false,  // True if this is a "skipped" marker for a recurrence (not a real transaction)
     val createdAt: Long = System.currentTimeMillis(),
     val completedAt: Long? = null
 )

@@ -118,4 +118,10 @@ class TransactionRepository @Inject constructor(
         startDate: Long,
         endDate: Long
     ): Boolean = transactionDao.existsByAmountDescriptionAndDateRange(amount, description, startDate, endDate)
+
+    fun getSkippedRecurrencesInDateRange(
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<TransactionWithAccount>> =
+        transactionDao.getSkippedRecurrencesInDateRange(startDate, endDate)
 }

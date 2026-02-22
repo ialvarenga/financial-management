@@ -40,6 +40,28 @@ object DatabaseModule {
         }
     }
 
+    private val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Original migration created skipped_recurrences table (old approach)
+            // This is kept for databases that haven't migrated yet
+            db.execSQL("ALTER TABLE transactions ADD COLUMN isSkippedRecurrence INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    private val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Add isSkippedRecurrence column to transactions table (if not exists)
+            // This handles databases that were at version 12 with old skipped_recurrences table
+            try {
+                db.execSQL("ALTER TABLE transactions ADD COLUMN isSkippedRecurrence INTEGER NOT NULL DEFAULT 0")
+            } catch (e: Exception) {
+                // Column might already exist if 11->12 ran with new code
+            }
+            // Drop the old skipped_recurrences table if it exists
+            db.execSQL("DROP TABLE IF EXISTS skipped_recurrences")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -48,7 +70,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "financial_app.db"
         )
-        .addMigrations(MIGRATION_9_10, MIGRATION_10_11)
+        .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
         .fallbackToDestructiveMigration()  // For development - will use proper migrations in production
         .build()
     }
