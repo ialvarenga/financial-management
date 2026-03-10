@@ -48,23 +48,27 @@ class GetMonthlyExpensesUseCase @Inject constructor(
             }
         }
 
-        // Combine recurrences with confirmed IDs (for monthly/yearly) and counts (for weekly/daily)
+        // Combine recurrences with confirmed IDs (for monthly/yearly) and dates (for weekly/daily)
         // Note: Skipped recurrences are also transactions (with isSkippedRecurrence=true),
         // so they're automatically included in these queries
         return combine(
             recurrenceRepository.getActiveRecurrences(),
             transactionRepository.getRecurrenceIdsWithTransactionsInDateRange(startMillis, endMillis),
             creditCardItemRepository.getRecurrenceIdsWithItemsInMonth(month, year),
-            transactionRepository.getTransactionCountsByRecurrenceInDateRange(startMillis, endMillis),
-            creditCardItemRepository.getItemCountsByRecurrenceInMonth(month, year)
-        ) { recurrences, transactionRecurrenceIds, creditCardRecurrenceIds, transactionCounts, creditCardCounts ->
+            transactionRepository.getTransactionDatesByRecurrenceInDateRange(startMillis, endMillis),
+            creditCardItemRepository.getItemDatesByRecurrenceInMonth(month, year)
+        ) { recurrences, transactionRecurrenceIds, creditCardRecurrenceIds, transactionDates, creditCardDates ->
             // Combine confirmed recurrence IDs (for monthly/yearly filtering)
             val confirmedRecurrenceIds = (transactionRecurrenceIds + creditCardRecurrenceIds).toSet()
 
-            // Combine counts (for weekly/daily filtering)
-            val allCounts = mutableMapOf<Long, Int>()
-            transactionCounts.forEach { (id, count) -> allCounts[id] = allCounts.getOrDefault(id, 0) + count }
-            creditCardCounts.forEach { (id, count) -> allCounts[id] = allCounts.getOrDefault(id, 0) + count }
+            // Combine dates (for weekly/daily filtering)
+            val allDates = mutableMapOf<Long, MutableSet<Long>>()
+            transactionDates.forEach { (id, dates) ->
+                allDates.getOrPut(id) { mutableSetOf() }.addAll(dates)
+            }
+            creditCardDates.forEach { (id, dates) ->
+                allDates.getOrPut(id) { mutableSetOf() }.addAll(dates)
+            }
 
             recurrences.flatMap { recurrence ->
                 when (recurrence.frequency) {
@@ -77,16 +81,12 @@ class GetMonthlyExpensesUseCase @Inject constructor(
                         }
                     }
                     Frequency.WEEKLY, Frequency.DAILY -> {
-                        // For weekly/daily: calculate expected count, subtract actual count
-                        val expectedCount = countExpectedOccurrences(recurrence, startDate, endDate)
-                        val actualCount = allCounts[recurrence.id] ?: 0
-                        val remainingCount = (expectedCount - actualCount).coerceAtLeast(0)
-
-                        if (remainingCount > 0) {
-                            projectRecurrenceForMonth(recurrence, startDate, endDate).take(remainingCount)
-                        } else {
-                            emptyList()
-                        }
+                        // For weekly/daily: filter out projected dates that already have transactions
+                        val confirmedDates = allDates[recurrence.id] ?: emptySet()
+                        projectRecurrenceForMonth(recurrence, startDate, endDate)
+                            .filter { projected ->
+                                !isDateConfirmed(projected.projectedDate, confirmedDates)
+                            }
                     }
                 }
             }
@@ -94,14 +94,20 @@ class GetMonthlyExpensesUseCase @Inject constructor(
     }
 
     /**
-     * Counts how many occurrences a recurrence should have in the given date range
+     * Checks if a projected date matches any of the confirmed dates.
+     * Compares dates at day level, ignoring time components.
      */
-    private fun countExpectedOccurrences(
-        recurrence: Recurrence,
-        monthStart: LocalDate,
-        monthEnd: LocalDate
-    ): Int {
-        return projectRecurrenceForMonth(recurrence, monthStart, monthEnd).size
+    private fun isDateConfirmed(projectedDateMillis: Long, confirmedDates: Set<Long>): Boolean {
+        val projectedDate = Instant.ofEpochMilli(projectedDateMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+
+        return confirmedDates.any { confirmedMillis ->
+            val confirmedDate = Instant.ofEpochMilli(confirmedMillis)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+            projectedDate == confirmedDate
+        }
     }
 
     private fun projectRecurrenceForMonth(

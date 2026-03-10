@@ -68,6 +68,13 @@ class CreditCardItemRepository @Inject constructor(
         itemDao.getItemCountsByRecurrenceInMonth(month, year)
             .map { counts -> counts.associate { it.recurrenceId to it.count } }
 
+    fun getItemDatesByRecurrenceInMonth(month: Int, year: Int): Flow<Map<Long, Set<Long>>> =
+        itemDao.getItemDatesByRecurrenceInMonth(month, year)
+            .map { dates ->
+                dates.groupBy { it.recurrenceId }
+                    .mapValues { (_, list) -> list.map { it.date }.toSet() }
+            }
+
     suspend fun updateCategoryByInstallmentGroup(groupId: String, category: Category) =
         itemDao.updateCategoryByInstallmentGroup(groupId, category)
 

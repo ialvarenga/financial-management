@@ -112,6 +112,16 @@ class TransactionRepository @Inject constructor(
         transactionDao.getTransactionCountsByRecurrenceInDateRange(startDate, endDate)
             .map { counts -> counts.associate { it.recurrenceId to it.count } }
 
+    fun getTransactionDatesByRecurrenceInDateRange(
+        startDate: Long,
+        endDate: Long
+    ): Flow<Map<Long, Set<Long>>> =
+        transactionDao.getTransactionDatesByRecurrenceInDateRange(startDate, endDate)
+            .map { dates ->
+                dates.groupBy { it.recurrenceId }
+                    .mapValues { (_, list) -> list.map { it.date }.toSet() }
+            }
+
     suspend fun existsByAmountDescriptionAndDateRange(
         amount: Long,
         description: String,

@@ -6,6 +6,7 @@ import com.example.gerenciadorfinanceiro.data.local.entity.TransactionWithAccoun
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.model.RecurrenceCount
+import com.example.gerenciadorfinanceiro.domain.model.RecurrenceDate
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import kotlinx.coroutines.flow.Flow
@@ -182,6 +183,16 @@ interface TransactionDao {
         startDate: Long,
         endDate: Long
     ): Flow<List<RecurrenceCount>>
+
+    @Query("""
+        SELECT recurrenceId, date FROM transactions
+        WHERE recurrenceId IS NOT NULL
+        AND date BETWEEN :startDate AND :endDate
+    """)
+    fun getTransactionDatesByRecurrenceInDateRange(
+        startDate: Long,
+        endDate: Long
+    ): Flow<List<RecurrenceDate>>
 
     @Query("""
         SELECT EXISTS(

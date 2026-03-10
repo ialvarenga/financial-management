@@ -19,6 +19,7 @@ import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import com.example.gerenciadorfinanceiro.data.repository.TransactionRepository
 import com.example.gerenciadorfinanceiro.util.getMonthBounds
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -39,6 +40,7 @@ data class TransactionsUiState(
     val isLoading: Boolean = true
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TransactionsViewModel @Inject constructor(
     private val getMonthlyTransactionsUseCase: GetMonthlyTransactionsUseCase,
@@ -56,12 +58,14 @@ class TransactionsViewModel @Inject constructor(
     private val _selectedMonth = MutableStateFlow(LocalDate.now().monthValue)
     private val _selectedYear = MutableStateFlow(LocalDate.now().year)
     private val _filterType = MutableStateFlow<TransactionType?>(null)
+    private val _refreshTrigger = MutableStateFlow(0L)
 
     val uiState: StateFlow<TransactionsUiState> = combine(
         _selectedMonth,
         _selectedYear,
-        _filterType
-    ) { month, year, filterType ->
+        _filterType,
+        _refreshTrigger
+    ) { month, year, filterType, _ ->
         Triple(month, year, filterType)
     }.flatMapLatest { (month, year, filterType) ->
         val (startMillis, endMillis) = getMonthBounds(month, year)
@@ -154,12 +158,16 @@ class TransactionsViewModel @Inject constructor(
                 markAsCompleted = true,
                 selectedAccountId = selectedAccountId
             )
+            // Trigger a refresh to ensure the UI updates immediately
+            _refreshTrigger.value = System.currentTimeMillis()
         }
     }
 
     fun skipRecurrence(projectedRecurrence: ProjectedRecurrence, reason: String? = null) {
         viewModelScope.launch {
             skipRecurrenceUseCase(projectedRecurrence, reason)
+            // Trigger a refresh to ensure the UI updates immediately
+            _refreshTrigger.value = System.currentTimeMillis()
         }
     }
 

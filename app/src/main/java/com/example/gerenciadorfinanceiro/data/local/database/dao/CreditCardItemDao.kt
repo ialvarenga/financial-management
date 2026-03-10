@@ -4,6 +4,7 @@ import androidx.room.*
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.model.RecurrenceCount
+import com.example.gerenciadorfinanceiro.domain.model.RecurrenceDate
 import kotlinx.coroutines.flow.Flow
 
 // Reusing CardBillTotal from CreditCardBillDao
@@ -110,6 +111,15 @@ interface CreditCardItemDao {
         GROUP BY items.recurrenceId
     """)
     fun getItemCountsByRecurrenceInMonth(month: Int, year: Int): Flow<List<RecurrenceCount>>
+
+    @Query("""
+        SELECT items.recurrenceId, items.purchaseDate as date
+        FROM credit_card_items items
+        INNER JOIN credit_card_bills bills ON items.creditCardBillId = bills.id
+        WHERE items.recurrenceId IS NOT NULL
+        AND bills.month = :month AND bills.year = :year
+    """)
+    fun getItemDatesByRecurrenceInMonth(month: Int, year: Int): Flow<List<RecurrenceDate>>
 
     @Query("UPDATE credit_card_items SET category = :category WHERE installmentGroupId = :groupId")
     suspend fun updateCategoryByInstallmentGroup(groupId: String, category: Category)
