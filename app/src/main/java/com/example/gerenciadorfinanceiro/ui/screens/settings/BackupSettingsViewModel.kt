@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gerenciadorfinanceiro.data.backup.ExportResult
 import com.example.gerenciadorfinanceiro.data.backup.ImportResult
+import com.example.gerenciadorfinanceiro.data.repository.BackupRepository
 import com.example.gerenciadorfinanceiro.domain.usecase.ExportBackupUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.ImportBackupUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,8 +19,10 @@ import javax.inject.Inject
 data class BackupSettingsUiState(
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
+    val isResetting: Boolean = false,
     val exportSuccess: String? = null,
     val importSuccess: ImportSuccessInfo? = null,
+    val resetSuccess: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -36,7 +39,8 @@ data class ImportSuccessInfo(
 @HiltViewModel
 class BackupSettingsViewModel @Inject constructor(
     private val exportBackupUseCase: ExportBackupUseCase,
-    private val importBackupUseCase: ImportBackupUseCase
+    private val importBackupUseCase: ImportBackupUseCase,
+    private val backupRepository: BackupRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BackupSettingsUiState())
@@ -100,11 +104,29 @@ class BackupSettingsViewModel @Inject constructor(
         }
     }
 
+    fun resetAllData() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isResetting = true, resetSuccess = false, errorMessage = null) }
+            try {
+                backupRepository.resetAllData()
+                _uiState.update { it.copy(isResetting = false, resetSuccess = true) }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isResetting = false,
+                        errorMessage = e.message ?: "Erro ao resetar dados"
+                    )
+                }
+            }
+        }
+    }
+
     fun clearMessages() {
         _uiState.update {
             it.copy(
                 exportSuccess = null,
                 importSuccess = null,
+                resetSuccess = false,
                 errorMessage = null
             )
         }

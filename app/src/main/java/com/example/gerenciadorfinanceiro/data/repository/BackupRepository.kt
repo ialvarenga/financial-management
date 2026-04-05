@@ -112,4 +112,8 @@ class BackupRepository @Inject constructor(
             }
         }
     }
+
+    suspend fun resetAllData(): Unit = withContext(Dispatchers.IO) {
+        database.clearAllTables()
+    }
 }

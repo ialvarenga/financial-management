@@ -23,6 +23,7 @@ import com.example.gerenciadorfinanceiro.ui.screens.settings.NotificationSetting
 import com.example.gerenciadorfinanceiro.ui.screens.settings.NotificationPermissionScreen
 import com.example.gerenciadorfinanceiro.ui.screens.settings.BackupSettingsScreen
 import com.example.gerenciadorfinanceiro.ui.screens.mais.MaisScreen
+import com.example.gerenciadorfinanceiro.ui.screens.mais.DeveloperToolsScreen
 import com.example.gerenciadorfinanceiro.ui.screens.analytics.AnalyticsScreen
 
 sealed class Screen(val route: String) {
@@ -60,6 +61,7 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
     object Mais : Screen("mais")
     object Analytics : Screen("analytics")
+    object DeveloperTools : Screen("developer_tools")
 
     // Will add more screens later
 }
@@ -276,12 +278,21 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 onNavigateToAnalytics = {
                     navController.navigate(Screen.Analytics.route)
+                },
+                onNavigateToDeveloperTools = {
+                    navController.navigate(Screen.DeveloperTools.route)
                 }
             )
         }
 
         composable(Screen.Analytics.route) {
             AnalyticsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.DeveloperTools.route) {
+            DeveloperToolsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
