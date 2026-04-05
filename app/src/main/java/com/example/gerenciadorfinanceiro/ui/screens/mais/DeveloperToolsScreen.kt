@@ -11,10 +11,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.gerenciadorfinanceiro.data.backup.BackupPreviewInfo
+import com.example.gerenciadorfinanceiro.data.backup.ImportEntity
+import com.example.gerenciadorfinanceiro.data.backup.ImportEntityFilter
 import com.example.gerenciadorfinanceiro.ui.screens.settings.BackupSettingsViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -34,8 +38,6 @@ fun DeveloperToolsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var showImportDialog by remember { mutableStateOf(false) }
-    var pendingImportUri by remember { mutableStateOf<Uri?>(null) }
     var showResetDialog by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -47,10 +49,7 @@ fun DeveloperToolsScreen(
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
-        uri?.let {
-            pendingImportUri = it
-            showImportDialog = true
-        }
+        uri?.let { viewModel.loadBackupForPreview(it) }
     }
 
     LaunchedEffect(uiState.exportSuccess) {
@@ -62,14 +61,16 @@ fun DeveloperToolsScreen(
 
     LaunchedEffect(uiState.importSuccess) {
         uiState.importSuccess?.let { info ->
-            val message = buildString {
-                append("Importação concluída! ")
-                append("${info.accountCount} contas, ")
-                append("${info.transactionCount} transações, ")
-                append("${info.creditCardCount} cartões, ")
-                append("${info.recurrenceCount} recorrências, ")
-                append("${info.transferCount} transferências")
+            val parts = buildList {
+                if (info.accountCount > 0) add("${info.accountCount} contas")
+                if (info.transactionCount > 0) add("${info.transactionCount} transações")
+                if (info.creditCardCount > 0) add("${info.creditCardCount} cartões")
+                if (info.recurrenceCount > 0) add("${info.recurrenceCount} recorrências")
+                if (info.transferCount > 0) add("${info.transferCount} transferências")
+                if (info.creditCardBillCount > 0) add("${info.creditCardBillCount} faturas")
+                if (info.creditCardItemCount > 0) add("${info.creditCardItemCount} itens")
             }
+            val message = "Importação concluída! " + parts.joinToString(", ")
             snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Long)
             viewModel.clearMessages()
         }
@@ -89,45 +90,14 @@ fun DeveloperToolsScreen(
         }
     }
 
-    // Import confirmation dialog
-    if (showImportDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showImportDialog = false
-                pendingImportUri = null
-            },
-            icon = { Icon(Icons.Default.Warning, contentDescription = null) },
-            title = { Text("Confirmar Importação") },
-            text = {
-                Text(
-                    "ATENÇÃO: Todos os dados existentes serão substituídos pelos dados do backup. " +
-                    "Esta ação não pode ser desfeita.\n\nDeseja continuar?"
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        pendingImportUri?.let { viewModel.importBackup(it) }
-                        showImportDialog = false
-                        pendingImportUri = null
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("Sim, Substituir Dados")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showImportDialog = false
-                        pendingImportUri = null
-                    }
-                ) {
-                    Text("Cancelar")
-                }
-            }
+    // Entity selection dialog shown after reading the backup file
+    if (uiState.backupPreview != null) {
+        ImportEntitySelectionDialog(
+            preview = uiState.backupPreview!!,
+            filter = uiState.entityFilter,
+            onToggle = { entity, checked -> viewModel.toggleEntityFilter(entity, checked) },
+            onConfirm = { viewModel.confirmImport() },
+            onDismiss = { viewModel.cancelImport() }
         )
     }
 
@@ -211,7 +181,7 @@ fun DeveloperToolsScreen(
                 title = "Importar Dados",
                 description = "Restaurar dados de um arquivo de backup",
                 icon = Icons.Default.Download,
-                isLoading = uiState.isImporting,
+                isLoading = uiState.isImporting || uiState.isLoadingBackup,
                 onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }
             )
 
@@ -233,6 +203,153 @@ fun DeveloperToolsScreen(
                 onClick = { showResetDialog = true }
             )
         }
+    }
+}
+
+@Composable
+private fun ImportEntitySelectionDialog(
+    preview: BackupPreviewInfo,
+    filter: ImportEntityFilter,
+    onToggle: (ImportEntity, Boolean) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Download, contentDescription = null) },
+        title = { Text("Importar Dados") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                Text(
+                    text = "Selecione os dados que deseja importar do backup:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // Accounts
+                EntityCheckboxRow(
+                    label = "Contas",
+                    count = preview.accountCount,
+                    checked = filter.accounts,
+                    enabled = true,
+                    onCheckedChange = { onToggle(ImportEntity.ACCOUNTS, it) }
+                )
+                // Transactions (depends on accounts)
+                EntityCheckboxRow(
+                    label = "Transações",
+                    count = preview.transactionCount,
+                    checked = filter.transactions,
+                    enabled = filter.accounts,
+                    indent = true,
+                    onCheckedChange = { onToggle(ImportEntity.TRANSACTIONS, it) }
+                )
+                // Transfers (depends on accounts)
+                EntityCheckboxRow(
+                    label = "Transferências",
+                    count = preview.transferCount,
+                    checked = filter.transfers,
+                    enabled = filter.accounts,
+                    indent = true,
+                    onCheckedChange = { onToggle(ImportEntity.TRANSFERS, it) }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // Credit cards
+                EntityCheckboxRow(
+                    label = "Cartões de Crédito",
+                    count = preview.creditCardCount,
+                    checked = filter.creditCards,
+                    enabled = true,
+                    onCheckedChange = { onToggle(ImportEntity.CREDIT_CARDS, it) }
+                )
+                // Bills (depends on credit cards)
+                EntityCheckboxRow(
+                    label = "Faturas",
+                    count = preview.creditCardBillCount,
+                    checked = filter.creditCardBills,
+                    enabled = filter.creditCards,
+                    indent = true,
+                    onCheckedChange = { onToggle(ImportEntity.CREDIT_CARD_BILLS, it) }
+                )
+                // Items (depends on bills)
+                EntityCheckboxRow(
+                    label = "Itens das Faturas",
+                    count = preview.creditCardItemCount,
+                    checked = filter.creditCardItems,
+                    enabled = filter.creditCards && filter.creditCardBills,
+                    indent = true,
+                    onCheckedChange = { onToggle(ImportEntity.CREDIT_CARD_ITEMS, it) }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // Recurrences (independent)
+                EntityCheckboxRow(
+                    label = "Recorrências",
+                    count = preview.recurrenceCount,
+                    checked = filter.recurrences,
+                    enabled = true,
+                    onCheckedChange = { onToggle(ImportEntity.RECURRENCES, it) }
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                Text(
+                    text = "⚠ Todos os dados existentes serão substituídos pelos selecionados. Esta ação não pode ser desfeita.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Importar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+private fun EntityCheckboxRow(
+    label: String,
+    count: Int,
+    checked: Boolean,
+    enabled: Boolean,
+    indent: Boolean = false,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = if (indent) 24.dp else 0.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked && enabled,
+            onCheckedChange = { if (enabled) onCheckedChange(it) },
+            enabled = enabled
+        )
+        Text(
+            text = "$label ($count)",
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -261,7 +378,7 @@ private fun ToolOption(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 14.dp, horizontal = 16.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Icon(
@@ -299,4 +416,3 @@ private fun ToolOption(
         }
     }
 }
-

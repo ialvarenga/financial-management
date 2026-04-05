@@ -3,7 +3,11 @@ package com.example.gerenciadorfinanceiro.ui.screens.settings
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gerenciadorfinanceiro.data.backup.BackupPreviewInfo
 import com.example.gerenciadorfinanceiro.data.backup.ExportResult
+import com.example.gerenciadorfinanceiro.data.backup.FinancialData
+import com.example.gerenciadorfinanceiro.data.backup.ImportEntity
+import com.example.gerenciadorfinanceiro.data.backup.ImportEntityFilter
 import com.example.gerenciadorfinanceiro.data.backup.ImportResult
 import com.example.gerenciadorfinanceiro.data.repository.BackupRepository
 import com.example.gerenciadorfinanceiro.domain.usecase.ExportBackupUseCase
@@ -19,11 +23,14 @@ import javax.inject.Inject
 data class BackupSettingsUiState(
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
+    val isLoadingBackup: Boolean = false,
     val isResetting: Boolean = false,
     val exportSuccess: String? = null,
     val importSuccess: ImportSuccessInfo? = null,
     val resetSuccess: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val backupPreview: BackupPreviewInfo? = null,
+    val entityFilter: ImportEntityFilter = ImportEntityFilter()
 )
 
 data class ImportSuccessInfo(
@@ -45,6 +52,8 @@ class BackupSettingsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(BackupSettingsUiState())
     val uiState: StateFlow<BackupSettingsUiState> = _uiState.asStateFlow()
+
+    private var pendingBackupData: FinancialData? = null
 
     fun exportBackup(uri: Uri) {
         viewModelScope.launch {
@@ -71,11 +80,90 @@ class BackupSettingsViewModel @Inject constructor(
         }
     }
 
-    fun importBackup(uri: Uri) {
+    fun loadBackupForPreview(uri: Uri) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isImporting = true, importSuccess = null, errorMessage = null) }
+            _uiState.update { it.copy(isLoadingBackup = true, errorMessage = null) }
+            val result = importBackupUseCase.readBackup(uri)
+            result.fold(
+                onSuccess = { backupData ->
+                    if (backupData.version != 1) {
+                        _uiState.update {
+                            it.copy(
+                                isLoadingBackup = false,
+                                errorMessage = "Versão do backup não compatível (versão ${backupData.version})"
+                            )
+                        }
+                        return@launch
+                    }
+                    pendingBackupData = backupData.data
+                    _uiState.update {
+                        it.copy(
+                            isLoadingBackup = false,
+                            backupPreview = BackupPreviewInfo(
+                                accountCount = backupData.data.accounts.size,
+                                transactionCount = backupData.data.transactions.size,
+                                creditCardCount = backupData.data.creditCards.size,
+                                recurrenceCount = backupData.data.recurrences.size,
+                                transferCount = backupData.data.transfers.size,
+                                creditCardBillCount = backupData.data.creditCardBills.size,
+                                creditCardItemCount = backupData.data.creditCardItems.size
+                            ),
+                            entityFilter = ImportEntityFilter()
+                        )
+                    }
+                },
+                onFailure = { exception ->
+                    _uiState.update {
+                        it.copy(
+                            isLoadingBackup = false,
+                            errorMessage = exception.message ?: "Erro ao ler arquivo de backup"
+                        )
+                    }
+                }
+            )
+        }
+    }
 
-            when (val result = importBackupUseCase.execute(uri)) {
+    fun toggleEntityFilter(entity: ImportEntity, checked: Boolean) {
+        val current = _uiState.value.entityFilter
+        val updated = when (entity) {
+            ImportEntity.ACCOUNTS -> {
+                if (!checked) {
+                    current.copy(accounts = false, transactions = false, transfers = false)
+                } else {
+                    current.copy(accounts = true)
+                }
+            }
+            ImportEntity.CREDIT_CARDS -> {
+                if (!checked) {
+                    current.copy(creditCards = false, creditCardBills = false, creditCardItems = false)
+                } else {
+                    current.copy(creditCards = true)
+                }
+            }
+            ImportEntity.TRANSACTIONS -> current.copy(transactions = checked)
+            ImportEntity.RECURRENCES -> current.copy(recurrences = checked)
+            ImportEntity.TRANSFERS -> current.copy(transfers = checked)
+            ImportEntity.CREDIT_CARD_BILLS -> {
+                if (!checked) {
+                    current.copy(creditCardBills = false, creditCardItems = false)
+                } else {
+                    current.copy(creditCardBills = true)
+                }
+            }
+            ImportEntity.CREDIT_CARD_ITEMS -> current.copy(creditCardItems = checked)
+        }
+        _uiState.update { it.copy(entityFilter = updated) }
+    }
+
+    fun confirmImport() {
+        val data = pendingBackupData ?: return
+        val filter = _uiState.value.entityFilter
+        viewModelScope.launch {
+            _uiState.update { it.copy(isImporting = true, backupPreview = null, errorMessage = null) }
+            pendingBackupData = null
+
+            when (val result = importBackupUseCase.executeWithData(data, filter)) {
                 is ImportResult.Success -> {
                     _uiState.update {
                         it.copy(
@@ -102,6 +190,16 @@ class BackupSettingsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun cancelImport() {
+        pendingBackupData = null
+        _uiState.update { it.copy(backupPreview = null) }
+    }
+
+    // Keep legacy import for backward compatibility
+    fun importBackup(uri: Uri) {
+        loadBackupForPreview(uri)
     }
 
     fun resetAllData() {

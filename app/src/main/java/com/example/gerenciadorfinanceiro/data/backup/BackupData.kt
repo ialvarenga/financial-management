@@ -42,3 +42,28 @@ sealed class ImportResult {
     ) : ImportResult()
     data class Error(val message: String) : ImportResult()
 }
+
+data class ImportEntityFilter(
+    val accounts: Boolean = true,
+    val creditCards: Boolean = true,
+    val transactions: Boolean = true,
+    val recurrences: Boolean = true,
+    val transfers: Boolean = true,
+    val creditCardBills: Boolean = true,
+    val creditCardItems: Boolean = true
+)
+
+data class BackupPreviewInfo(
+    val accountCount: Int,
+    val transactionCount: Int,
+    val creditCardCount: Int,
+    val recurrenceCount: Int,
+    val transferCount: Int,
+    val creditCardBillCount: Int,
+    val creditCardItemCount: Int
+)
+
+enum class ImportEntity {
+    ACCOUNTS, CREDIT_CARDS, TRANSACTIONS, RECURRENCES, TRANSFERS, CREDIT_CARD_BILLS, CREDIT_CARD_ITEMS
+}
+
