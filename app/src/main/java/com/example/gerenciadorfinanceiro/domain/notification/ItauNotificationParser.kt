@@ -10,7 +10,10 @@ import javax.inject.Inject
 class ItauNotificationParser @Inject constructor() : NotificationParser {
 
     private val pixReceivedPattern = Regex("PIX recebido.*R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
-    private val pixSentPattern = Regex("PIX enviado.*R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
+    private val pixSentPattern = Regex(
+        "pix enviado.*?R\\$\\s*([\\d.,]+)\\s+para\\s+(.+?),",
+        RegexOption.IGNORE_CASE
+    )
     private val creditCardPurchasePattern = Regex(
         "Compra aprovada de R\\$\\s*([\\d.,]+)\\s+em\\s+(.+?)\\s+no dia",
         RegexOption.IGNORE_CASE
@@ -45,10 +48,12 @@ class ItauNotificationParser @Inject constructor() : NotificationParser {
             Log.d(TAG, "Matched sent pattern: ${sentMatch.value}")
             val amountStr = "R$ ${sentMatch.groupValues[1]}"
             val amount = amountStr.toCents() ?: return null
+            val recipient = sentMatch.groupValues[2].trim()
+            val description = if (recipient.isNotEmpty()) "PIX enviado para $recipient" else "PIX enviado"
             return ParsedNotification(
                 source = NotificationSource.ITAU,
                 amount = amount,
-                description = "PIX enviado",
+                description = description,
                 timestamp = timestamp,
                 transactionType = TransactionType.EXPENSE,
                 lastFourDigits = null,
