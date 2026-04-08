@@ -77,6 +77,22 @@ class CreateCreditCardPurchaseUseCase @Inject constructor(
                     name = "Card ending in ${parsed.lastFourDigits}"
                 )
             }
+
+            // Fallback: if the bank has exactly one active card, use it
+            val bank = when (parsed.source) {
+                NotificationSource.NUBANK -> Bank.NUBANK
+                NotificationSource.ITAU -> Bank.ITAU
+                else -> null
+            }
+            if (bank != null) {
+                val bankCards = creditCardRepository.getAllByBank(bank)
+                if (bankCards.size == 1) {
+                    Log.i(TAG, "No card found with last 4 digits ${parsed.lastFourDigits}, " +
+                            "falling back to single ${bank.displayName} card")
+                    return bankCards[0]
+                }
+            }
+
             throw IllegalStateException("No credit card found with last 4 digits: ${parsed.lastFourDigits}")
         }
 

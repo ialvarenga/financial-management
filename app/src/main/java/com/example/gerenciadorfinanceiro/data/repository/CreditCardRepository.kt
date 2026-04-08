@@ -26,6 +26,9 @@ class CreditCardRepository @Inject constructor(
     suspend fun getByBank(bank: Bank): CreditCard? =
         creditCardDao.getByBank(bank)
 
+    suspend fun getAllByBank(bank: Bank): List<CreditCard> =
+        creditCardDao.getAllByBank(bank)
+
     suspend fun insert(creditCard: CreditCard): Long = creditCardDao.insert(creditCard)
 
     suspend fun update(creditCard: CreditCard) = creditCardDao.update(creditCard)

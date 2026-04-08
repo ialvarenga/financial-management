@@ -25,6 +25,9 @@ interface CreditCardDao {
     @Query("SELECT * FROM credit_cards WHERE bank = :bank AND isActive = 1 LIMIT 1")
     suspend fun getByBank(bank: com.example.gerenciadorfinanceiro.domain.model.Bank): CreditCard?
 
+    @Query("SELECT * FROM credit_cards WHERE bank = :bank AND isActive = 1")
+    suspend fun getAllByBank(bank: com.example.gerenciadorfinanceiro.domain.model.Bank): List<CreditCard>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(creditCard: CreditCard): Long
 
