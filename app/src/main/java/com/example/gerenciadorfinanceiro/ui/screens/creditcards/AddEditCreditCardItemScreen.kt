@@ -303,48 +303,170 @@ fun AddEditCreditCardItemScreen(
             }
 
             // Installments Selector
-            val canEditInstallments = !uiState.isEditing || uiState.installments == 1
+            // Check original item's installments, not current UI state (which changes when converting)
+            val canEditInstallments = !uiState.isEditing || (uiState.editingItem?.totalInstallments ?: 1) == 1
 
             if (canEditInstallments) {
-                Text("Parcelas", style = MaterialTheme.typography.titleSmall)
-                var expandedInstallments by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = expandedInstallments,
-                    onExpandedChange = { expandedInstallments = it }
-                ) {
-                    OutlinedTextField(
-                        value = if (uiState.installments == 1) {
-                            "À vista"
-                        } else {
-                            "${uiState.installments}x"
-                        },
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Número de parcelas") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedInstallments) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expandedInstallments,
-                        onDismissRequest = { expandedInstallments = false }
+                // For editing single items, show option to convert to installment
+                if (uiState.isEditing && uiState.editingItem?.totalInstallments == 1) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("À vista") },
-                            onClick = {
-                                viewModel.onInstallmentsChange(1)
-                                expandedInstallments = false
-                            }
+                        Text(
+                            text = "Este item é uma parcela",
+                            style = MaterialTheme.typography.titleSmall
                         )
-                        (2..12).forEach { installments ->
+                        Switch(
+                            checked = uiState.isConvertingToInstallment,
+                            onCheckedChange = viewModel::onConvertingToInstallmentChange
+                        )
+                    }
+
+                    if (uiState.isConvertingToInstallment) {
+                        // Show current installment number selector
+                        var expandedCurrentInstallment by remember { mutableStateOf(false) }
+                        var expandedTotalInstallments by remember { mutableStateOf(false) }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Current installment number
+                            ExposedDropdownMenuBox(
+                                expanded = expandedCurrentInstallment,
+                                onExpandedChange = { expandedCurrentInstallment = it },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                OutlinedTextField(
+                                    value = "Parcela ${uiState.currentInstallmentNumber}",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Esta é a") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCurrentInstallment) },
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandedCurrentInstallment,
+                                    onDismissRequest = { expandedCurrentInstallment = false }
+                                ) {
+                                    (1..uiState.installments).forEach { num ->
+                                        DropdownMenuItem(
+                                            text = { Text("Parcela $num") },
+                                            onClick = {
+                                                viewModel.onCurrentInstallmentNumberChange(num)
+                                                expandedCurrentInstallment = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Total installments
+                            ExposedDropdownMenuBox(
+                                expanded = expandedTotalInstallments,
+                                onExpandedChange = { expandedTotalInstallments = it },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                OutlinedTextField(
+                                    value = "de ${uiState.installments}",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Total") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTotalInstallments) },
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandedTotalInstallments,
+                                    onDismissRequest = { expandedTotalInstallments = false }
+                                ) {
+                                    (2..24).forEach { total ->
+                                        DropdownMenuItem(
+                                            text = { Text("de $total") },
+                                            onClick = {
+                                                viewModel.onInstallmentsChange(total)
+                                                // Adjust current installment if needed
+                                                if (uiState.currentInstallmentNumber > total) {
+                                                    viewModel.onCurrentInstallmentNumberChange(total)
+                                                }
+                                                expandedTotalInstallments = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Info card showing what will happen
+                        val remainingInstallments = uiState.installments - uiState.currentInstallmentNumber
+                        if (remainingInstallments > 0) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                    Text(
+                                        text = "Serão criadas $remainingInstallments parcelas adicionais nas próximas faturas.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // For new items: standard installment selector
+                    Text("Parcelas", style = MaterialTheme.typography.titleSmall)
+                    var expandedInstallments by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = expandedInstallments,
+                        onExpandedChange = { expandedInstallments = it }
+                    ) {
+                        OutlinedTextField(
+                            value = if (uiState.installments == 1) {
+                                "À vista"
+                            } else {
+                                "${uiState.installments}x"
+                            },
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Número de parcelas") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedInstallments) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedInstallments,
+                            onDismissRequest = { expandedInstallments = false }
+                        ) {
                             DropdownMenuItem(
-                                text = { Text("${installments}x") },
+                                text = { Text("À vista") },
                                 onClick = {
-                                    viewModel.onInstallmentsChange(installments)
+                                    viewModel.onInstallmentsChange(1)
                                     expandedInstallments = false
                                 }
                             )
+                            (2..12).forEach { installments ->
+                                DropdownMenuItem(
+                                    text = { Text("${installments}x") },
+                                    onClick = {
+                                        viewModel.onInstallmentsChange(installments)
+                                        expandedInstallments = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -363,7 +485,7 @@ fun AddEditCreditCardItemScreen(
                 )
             }
 
-            if (uiState.installments > 1 && !uiState.isEditing) {
+            if (uiState.installments > 1 && !uiState.isEditing && !uiState.isConvertingToInstallment) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
