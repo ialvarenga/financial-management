@@ -165,9 +165,15 @@ class TransactionsViewModel @Inject constructor(
 
     fun skipRecurrence(projectedRecurrence: ProjectedRecurrence, reason: String? = null) {
         viewModelScope.launch {
-            skipRecurrenceUseCase(projectedRecurrence, reason)
-            // Trigger a refresh to ensure the UI updates immediately
-            _refreshTrigger.value = System.currentTimeMillis()
+            try {
+                skipRecurrenceUseCase(projectedRecurrence, reason)
+                // Trigger a refresh to ensure the UI updates immediately
+                _refreshTrigger.value = System.currentTimeMillis()
+            } catch (e: IllegalStateException) {
+                // Credit card recurrences cannot be skipped - this shouldn't happen
+                // as the UI hides the skip button for credit card recurrences
+                android.util.Log.e("TransactionsViewModel", "Failed to skip recurrence: ${e.message}")
+            }
         }
     }
 

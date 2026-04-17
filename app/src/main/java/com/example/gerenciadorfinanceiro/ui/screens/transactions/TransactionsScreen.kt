@@ -745,15 +745,18 @@ fun ProjectedRecurrenceItem(
                         label = { Text("Confirmar", style = MaterialTheme.typography.labelSmall) },
                         leadingIcon = { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                     )
-                    AssistChip(
-                        onClick = onSkip,
-                        label = { Text("Pular", style = MaterialTheme.typography.labelSmall) },
-                        leadingIcon = { Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                        colors = AssistChipDefaults.assistChipColors(
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    // Skip is only available for account-based recurrences (not credit card)
+                    if (recurrence.creditCardId == null) {
+                        AssistChip(
+                            onClick = onSkip,
+                            label = { Text("Pular", style = MaterialTheme.typography.labelSmall) },
+                            leadingIcon = { Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                            colors = AssistChipDefaults.assistChipColors(
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                leadingIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         )
-                    )
+                    }
                 }
             }
 
