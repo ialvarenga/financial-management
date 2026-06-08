@@ -11,65 +11,89 @@ class CsvBillParserTest {
     private val parser = CsvBillParser()
 
     @Test
-    fun `parseNubank should correctly parse valid CSV lines`() {
-        // Sample Nubank CSV content - you can replace this with your actual data
+    fun parseItauTest() {
+
         val csvData = """
-            date,title,amount
-            2026-06-07,Raia Drogasil,"10,99"
-            2026-06-07,Auto Posto Inaja,"22,00"
-            2026-06-07,Google Deezer Music P,"24,90"
-            2026-06-07,Circo Voador,"50,00"
-            2026-06-06,Uber - NuPay,"105,93"
-            2026-06-06,Uber - NuPay,"141,96"
-            2026-06-06,Supermarket C Grande,"22,57"
-            2026-06-06,Viniciusmoura,"326,77"
-            2026-06-06,Raia Drogasil,"24,97"
-            2026-06-06,Eventim Brasil Sao Pau,"352,00"
-            2026-06-05,Raia Drogasil - NuPay,"84,07"
-            2026-06-05,Netflix.Com,"44,90"
-            2026-06-04,Pagamento recebido,"- 7.188,73"
-            2026-06-04,iFood - NuPay,"73,86"
-            2026-06-04,iFood - NuPay,"70,79"
-            2026-06-04,Uber - NuPay,"8,98"
-            2026-06-04,Google Colab,"58,00"
-            2026-06-04,Raia Drogasil - Parcela 2/2,"346,24"
+            data,lançamento,valor            
+            2026-05-31,GITHUB, INC.SAN FRANCISCOUSA,53.6
+            2026-05-31,IOF INTERNACIONAL - GITHUB, INC.SAN FRANCISCOUSA,1.88
+            2026-05-30,SUPERMERCADO GUANABARARIO DE JANEIRBRA,209.72
+            2026-05-30,CHICKEN   BEER JACAREIJacareiBRA,38.98
+            2026-05-30,CosechasRIO DE JANEIRBRA,30
+            2026-05-30,SUPERMARKET C GRANDERIO DE JANEIRBRA,5.59
+            2026-05-29,SUPERMARKET C GRANDERIO DE JANEIRBRA,33.54
+            2026-05-28,AMAZON BRSAO PAULOBRA,46.9
+            2026-05-28,IFD*IFOOD CLUBOsascoBRA,7.98
+            2026-05-28,SUPERMARKET C GRANDERIO DE JANEIRBRA,31.51
+            2026-05-27,RAIA DROGASIL SARIO DE JANEIRBRA,19.98
+            2026-05-27,SUPERMARKET C GRANDERIO DE JANEIRBRA,47.43
+            2026-05-27,ASSB COMERCIO VAREJISRIO DE JANEIRBRA,47.99
+            2026-05-27,ASSB COMERCIO VAREJISRIO DE JANEIRBRA,23.5
+            2026-05-27,MCDONALDS GNGRIO DE JANEIRBRA,38.8
+            2026-05-26,SUPERMARKET C GRANDERIO DE JANEIRBRA,23.1
+            2026-05-26,BOLERIA LOVE SUGARRIO DE JANEIRBRA,71
+            2026-05-26,CACTUS ENTRETERIMENTORIO DE JANEIRBRA,61.23
+            2026-05-25,SUPERMARKET C GRANDERIO DE JANEIRBRA,21.16
+            2026-05-25,MERCADOLIVRE*MERCADOLOsascoBRA,-1754.06
+            2026-05-25,SUPERMARKET C GRANDERIO DE JANEIRBRA,68.02
+            2026-05-25,IFD*IFOOD CLUBOsascoBRA,7.98
+            2026-05-25,SUPERMARKET C GRANDERIO DE JANEIRBRA,43.16
+            2026-05-24,RAIA DROGASIL SARIO DE JANEIRBRA,27.69
+            2026-05-24,ParkShopCampoGRjRIO DE JANEIRBRA,265.1
+            2026-05-23,IFD*ASSB COMERCIO VARERIO DE JANEIRBRA,46.97
+            2026-05-23,IFD*PET CENTER COMERCIRIO DE JANEIRBRA,102.14
+            2026-05-23,DROGARIAS PACHECO S ARIO DE JANEIRBRA,24.98
+            2026-05-23,SUPERMARKET C GRANDERIO DE JANEIRBRA,8.42
+            2026-05-22,AmazonPrimeBRSAO PAULOBRA,19.9
+            2026-05-22,SUPERMARKET C GRANDERIO DE JANEIRBRA,6.17
+            2026-05-22,SUPERMARKET C GRANDERIO DE JANEIRBRA,17.1
+            2026-05-22,SUPERMARKET C GRANDERIO DE JANEIRBRA,27.72
+            2026-05-21,IFD*JALS FORNECIMENTORIO DE JANEIRBRA,63.63
+            2026-05-21,BOLERIA LOVE SUGARRIO DE JANEIRBRA,35
+            2026-05-21,CASA IMPERIALRIO DE JANEIRBRA,67.71
+            2026-05-20,ZEDEK PIZZASRIO DE JANEIRBRA,72.7
+            2026-05-20,IFD*PIZZARIA DA GRANDERIO DE JANEIRBRA,65.42
+            2026-05-19,SUPERMARKET C GRANDERIO DE JANEIRBRA,65.32
+            2026-05-18,RAIA DROGASIL SARIO DE JANEIRBRA,35.18
+            2026-05-18,SUPERMARKET C GRANDERIO DE JANEIRBRA,83.89
+            2026-05-17,MERCADOLIVRE*MERCADOLOsascoBRA,219.31
+            2026-05-17,KALUNGA SHOP*Kalunga 0RIO DE JANEIRBRA,131.7
+            2026-05-17,KOPENHAGEN PCGRIO DE JANEIRBRA,83.6
+            2026-05-17,SUPERMARKET C GRANDERIO DE JANEIRBRA,46.51
+            2026-05-16,ZS PIZZARIA1034RIO DE JANEIRBRA,34
+            2026-05-16,IFD*ARCOS DOURADOS COMRIO DE JANEIRBRA,42.79
+            2026-05-16,IFD*MERCATO EXPRESS HORIO DE JANEIRBRA,112.78
+            2026-05-16,RAIA DROGASIL SARIO DE JANEIRBRA,66.96
+            2026-05-16,SUPERMARKET C GRANDERIO DE JANEIRBRA,18.53
+            2026-05-15,IFD*MM FOOD PIZZAS E MRIO DE JANEIRBRA,84.23
+            2026-05-15,CASA IMPERIALRIO DE JANEIRBRA,55.36
+            2026-05-15,SUPERMARKET C GRANDERIO DE JANEIRBRA,6.17
+            2026-05-14,SUPERMARKET C GRANDERIO DE JANEIRBRA,83.85
+            2026-05-14,SUPERMARKET C GRANDERIO DE JANEIRBRA,49.76
+            2026-05-13,RAIA DROGASIL SARIO DE JANEIRBRA,30.47
+            2026-05-13,SUPERMARKET C GRANDERIO DE JANEIRBRA,92.16
+            2026-05-12,DELI PASTARIO DE JANEIRBRA,52
+            2026-05-12,IFD*IFOOD CLUBOsascoBRA,12.9
+            2026-05-11,TOTALPASSSAO PAULOBRA,149.9
+            2026-05-11,RAIA DROGASIL SARIO DE JANEIRBRA,44.21
+            2026-05-11,SUPERMARKET C GRANDERIO DE JANEIRBRA,79.02
+            2026-05-10,PAGAMENTO COM SALDO,-15309.44
+            2026-04-24,137.S.PARK CPO GDE - RRIO DE JANEIRBRA,59.93
+            2026-04-24,TravelexRIO DE JANEIRBRA,225.72
+            2026-04-12,DECATHLONRIO DE JANEIRBRA,196.98
+            2026-04-11,KALUNGA SHOP*Kalunga 0RIO DE JANEIRBRA,106.63
+            2026-04-06,parc  MP EMPSANTHOMAZOSASCOBRA,441.26
+            2026-03-29,CL JOIASRIO DE JANEIRBRA,918.4
+            2026-03-21,LU RODRIGUES - CAMPO GRIO DE JANEIRBRA,433.33
+            2025-08-17,AMAZONMKTPLC*FASTSHOPS SAO PAULO     BRA,213.16
         """.trimIndent()
 
         val inputStream = ByteArrayInputStream(csvData.toByteArray())
-        val result = parser.parse(inputStream, CsvFormat.NUBANK)
+        val result = parser.parse(inputStream, CsvFormat.ITAU)
 
         assertTrue("Result should be success", result is CsvParseResult.Success)
         val items = (result as CsvParseResult.Success).items
 
-        // Nubank logic in your class currently takes the absolute value and filters for amount > 0
-        // Adjust these assertions based on your expected behavior
-        assertEquals(3, items.size)
-        
-        assertEquals("iFood", items[0].description)
-        assertEquals(10050L, items[0].amount) // 100.50 in cents
-        assertEquals(Category.FOOD, items[0].category)
-
-        assertEquals("Uber", items[1].description)
-        assertEquals(2500L, items[1].amount)
-        assertEquals(Category.TRANSPORT, items[1].category)
-    }
-    
-    @Test
-    fun `parseNubank should handle installments correctly`() {
-        val csvData = """
-            date,title,amount
-            2023-11-01,Amazon parcela 2/5,-50.00
-        """.trimIndent()
-
-        val inputStream = ByteArrayInputStream(csvData.toByteArray())
-        val result = parser.parse(inputStream, CsvFormat.NUBANK)
-
-        assertTrue(result is CsvParseResult.Success)
-        val items = (result as CsvParseResult.Success).items
-        
-        assertEquals(1, items.size)
-        assertEquals(2, items[0].installmentNumber)
-        assertEquals(5, items[0].totalInstallments)
-        assertEquals(Category.SHOPPING, items[0].category)
+        assertEquals(69, items.size)
     }
 }

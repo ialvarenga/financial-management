@@ -128,18 +128,26 @@ class CsvBillParser @Inject constructor() {
     // Itaú format
     private fun parseItau(lines: List<String>): CsvParseResult {
         val items = mutableListOf<CsvBillItem>()
-        val dataLines = skipHeader(lines, listOf("data", "histórico", "historico"))
+        val dataLines = skipHeader(lines, listOf("data", "lançamento", "valor"))
 
         for ((index, line) in dataLines.withIndex()) {
             if (line.isBlank()) continue
 
             try {
-                val parts = line.split(";")
-                if (parts.size < 3) continue
+                val parts = line.split(",")
+                if (parts.size < 3)
+                    continue
+
+                val description = if (parts.size == 3) {
+                    parts[1].trim()
+                } else {
+                    // Handle case where description contains commas (unquoted)
+                    parts.subList(1, parts.size - 1).joinToString(",").trim()
+                }
 
                 val date = parseDate(parts[0].trim())
-                val description = parts[1].trim()
-                val amountStr = parts[2].trim().replace(".", "").replace(",", ".")
+                val amountStr = parts.last().trim()
+
                 val amount = parseAmount(amountStr)
 
                 val (installmentNumber, totalInstallments) = parseInstallments(description)
