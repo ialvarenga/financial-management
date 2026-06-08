@@ -46,6 +46,7 @@ fun CreditCardDetailScreen(
     var selectedAccountId by remember { mutableStateOf<Long?>(null) }
     var selectedBillId by remember { mutableStateOf<Long?>(null) }
     var showCloseBillDialog by remember { mutableStateOf(false) }
+    var showClearBillDialog by remember { mutableStateOf(false) }
 
     // Find the selected bill to check its status
     val selectedBill = selectedBillId?.let { id ->
@@ -82,6 +83,9 @@ fun CreditCardDetailScreen(
                             }) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = "Marcar como paga")
                             }
+                        }
+                        IconButton(onClick = { showClearBillDialog = true }) {
+                            Icon(Icons.Default.DeleteSweep, contentDescription = "Limpar itens")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -585,9 +589,31 @@ fun CreditCardDetailScreen(
         )
     }
 
+    // Clear all bill items confirmation dialog
+    if (showClearBillDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearBillDialog = false },
+            title = { Text("Limpar fatura") },
+            text = { Text("Remover todos os itens desta fatura? Esta ação não pode ser desfeita.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    selectedBillId?.let { viewModel.clearBillItems(it) }
+                    showClearBillDialog = false
+                    selectedBillId = null
+                }) {
+                    Text("Limpar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearBillDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     // Mark as paid confirmation dialog with account selection
-    if (showMarkAsPaidDialog) {
-        var expandedAccountDropdown by remember { mutableStateOf(false) }
+    if (showMarkAsPaidDialog) {        var expandedAccountDropdown by remember { mutableStateOf(false) }
 
         AlertDialog(
             onDismissRequest = {

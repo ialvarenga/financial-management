@@ -214,6 +214,13 @@ class CreditCardDetailViewModel @Inject constructor(
         }
     }
 
+    fun clearBillItems(billId: Long) {
+        viewModelScope.launch {
+            itemRepository.deleteAllByBill(billId)
+            billRepository.updateTotalAmount(billId, 0L)
+        }
+    }
+
     fun markBillAsPaid(billId: Long, accountId: Long) {
         viewModelScope.launch {
             markBillAsPaidUseCase(billId, accountId)
