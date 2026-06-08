@@ -1,5 +1,6 @@
 package com.example.gerenciadorfinanceiro.data.csv
 
+import android.util.Log
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.model.CsvBillItem
 import java.io.BufferedReader
@@ -33,6 +34,10 @@ sealed class CsvParseResult {
 @Singleton
 class CsvBillParser @Inject constructor() {
 
+    companion object {
+        private const val TAG = "CsvBillParser"
+    }
+
     private val brazilianDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
     private val isoDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
@@ -48,7 +53,10 @@ class CsvBillParser @Inject constructor() {
             val lines = reader.readLines()
             reader.close()
 
+            Log.d(TAG, "parse: read ${lines.size} lines, format=$format")
+
             if (lines.isEmpty()) {
+                Log.w(TAG, "parse: file is empty")
                 return CsvParseResult.Error("Arquivo CSV vazio")
             }
 
@@ -58,6 +66,7 @@ class CsvBillParser @Inject constructor() {
                 else -> parseGeneric(lines)
             }
         } catch (e: Exception) {
+            Log.e(TAG, "parse: failed to read file", e)
             CsvParseResult.Error("Erro ao ler arquivo: ${e.message}")
         }
     }
@@ -73,7 +82,7 @@ class CsvBillParser @Inject constructor() {
 
             val content = firstLines.joinToString("\n").lowercase()
 
-            when {
+            val detected = when {
                 content.contains("nubank") || content.contains("date,title,amount") -> CsvFormat.NUBANK
                 content.contains("inter") || content.contains("data;lancamento;valor") -> CsvFormat.INTER
                 content.contains("c6") || content.contains("data da compra") -> CsvFormat.C6BANK
@@ -82,7 +91,11 @@ class CsvBillParser @Inject constructor() {
                 content.contains("santander") -> CsvFormat.SANTANDER
                 else -> CsvFormat.GENERIC
             }
+
+            Log.d(TAG, "detectFormat: detected=$detected")
+            detected
         } catch (e: Exception) {
+            Log.e(TAG, "detectFormat: failed to detect format", e)
             null
         }
     }
@@ -91,13 +104,17 @@ class CsvBillParser @Inject constructor() {
     private fun parseNubank(lines: List<String>): CsvParseResult {
         val items = mutableListOf<CsvBillItem>()
         val dataLines = skipHeader(lines, listOf("date", "title", "amount"))
+        Log.d(TAG, "parseNubank: ${dataLines.size} data lines")
 
         for ((index, line) in dataLines.withIndex()) {
             if (line.isBlank()) continue
 
             try {
                 val parts = parse3FieldCsvLine(line, ',')
-                if (parts.size < 3) continue
+                if (parts.size < 3) {
+                    Log.w(TAG, "parseNubank: skipping line ${index + 2}, not enough fields (${parts.size}): $line")
+                    continue
+                }
 
                 val date = parseDate(parts[0].trim())
                 val description = parts[1].trim()
@@ -118,10 +135,12 @@ class CsvBillParser @Inject constructor() {
                 )
 
             } catch (e: Exception) {
+                Log.e(TAG, "parseNubank: error on line ${index + 2}: $line", e)
                 return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
             }
         }
 
+        Log.d(TAG, "parseNubank: parsed ${items.size} items")
         return CsvParseResult.Success(items)
     }
 
@@ -129,14 +148,17 @@ class CsvBillParser @Inject constructor() {
     private fun parseItau(lines: List<String>): CsvParseResult {
         val items = mutableListOf<CsvBillItem>()
         val dataLines = skipHeader(lines, listOf("data", "lançamento", "valor"))
+        Log.d(TAG, "parseItau: ${dataLines.size} data lines")
 
         for ((index, line) in dataLines.withIndex()) {
             if (line.isBlank()) continue
 
             try {
                 val parts = line.split(",")
-                if (parts.size < 3)
+                if (parts.size < 3) {
+                    Log.w(TAG, "parseItau: skipping line ${index + 2}, not enough fields (${parts.size}): $line")
                     continue
+                }
 
                 val description = if (parts.size == 3) {
                     parts[1].trim()
@@ -147,7 +169,6 @@ class CsvBillParser @Inject constructor() {
 
                 val date = parseDate(parts[0].trim())
                 val amountStr = parts.last().trim()
-
                 val amount = parseAmount(amountStr)
 
                 val (installmentNumber, totalInstallments) = parseInstallments(description)
@@ -163,12 +184,16 @@ class CsvBillParser @Inject constructor() {
                             totalInstallments = totalInstallments
                         )
                     )
+                } else {
+                    Log.d(TAG, "parseItau: skipping line ${index + 2} with non-positive amount=$amount")
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "parseItau: error on line ${index + 2}: $line", e)
                 return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
             }
         }
 
+        Log.d(TAG, "parseItau: parsed ${items.size} items")
         return CsvParseResult.Success(items)
     }
 
@@ -182,6 +207,7 @@ class CsvBillParser @Inject constructor() {
         } else {
             lines
         }
+        Log.d(TAG, "parseGeneric: ${dataLines.size} data lines")
 
         for ((index, line) in dataLines.withIndex()) {
             if (line.isBlank()) continue
@@ -194,7 +220,10 @@ class CsvBillParser @Inject constructor() {
                     parse3FieldCsvLine(line, ',')
                 }
 
-                if (parts.size < 3) continue
+                if (parts.size < 3) {
+                    Log.w(TAG, "parseGeneric: skipping line ${index + 2}, not enough fields (${parts.size}): $line")
+                    continue
+                }
 
                 val date = parseDate(parts[0].trim())
                 val description = parts[1].trim()
@@ -202,7 +231,7 @@ class CsvBillParser @Inject constructor() {
                 val amountStr = parts[2].trim()
                     .replace("R$", "")
                     .replace("$", "")
-                    .replace(",", "") // Remove thousand separators (commas in US format)
+                    .replace(",", "")
                     .trim()
                 val amount = parseAmount(amountStr)
 
@@ -219,12 +248,16 @@ class CsvBillParser @Inject constructor() {
                             totalInstallments = totalInstallments
                         )
                     )
+                } else {
+                    Log.d(TAG, "parseGeneric: skipping line ${index + 2} with non-positive amount=$amount")
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "parseGeneric: error on line ${index + 2}: $line", e)
                 return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
             }
         }
 
+        Log.d(TAG, "parseGeneric: parsed ${items.size} items")
         return CsvParseResult.Success(items)
     }
 
@@ -291,32 +324,29 @@ class CsvBillParser @Inject constructor() {
             try {
                 LocalDate.parse(dateStr, isoDateFormatter)
             } catch (e2: Exception) {
+                Log.w(TAG, "parseDate: unrecognized date format '$dateStr'")
                 throw IllegalArgumentException("Data inválida: $dateStr")
             }
         }
     }
 
     private fun parseAmount(amountStr: String): Long {
-        // US format: dot is decimal separator, comma is thousand separator
         val cleanAmount = amountStr
             .replace("R$", "")
             .replace("$", "")
             .replace(" ", "")
-            .replace(".", "")   // remove thousand separators FIRST
-            .replace(",", ".")  // then comma becomes the decimal point
+            .replace(".", "")
+            .replace(",", ".")
             .trim()
 
-        // Use BigDecimal for exact decimal arithmetic
         val value = try {
             BigDecimal(cleanAmount)
         } catch (e: NumberFormatException) {
+            Log.w(TAG, "parseAmount: invalid amount string '$amountStr' (cleaned='$cleanAmount')")
             throw IllegalArgumentException("Valor inválido: $amountStr")
         }
 
-        // Convert to cents and ensure it's positive
-        val cents = value
-            .setScale(0, RoundingMode.HALF_UP)
-
+        val cents = value.setScale(0, RoundingMode.HALF_UP)
         return cents.toLong()
     }
 
@@ -405,4 +435,3 @@ class CsvBillParser @Inject constructor() {
         return keywords.any { this.contains(it) }
     }
 }
-
