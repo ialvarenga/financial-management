@@ -54,12 +54,8 @@ class CsvBillParser @Inject constructor() {
 
             when (format) {
                 CsvFormat.NUBANK -> parseNubank(lines)
-                CsvFormat.INTER -> parseInter(lines)
-                CsvFormat.C6BANK -> parseC6Bank(lines)
                 CsvFormat.ITAU -> parseItau(lines)
-                CsvFormat.BRADESCO -> parseBradesco(lines)
-                CsvFormat.SANTANDER -> parseSantander(lines)
-                CsvFormat.GENERIC -> parseGeneric(lines)
+                else -> parseGeneric(lines)
             }
         } catch (e: Exception) {
             CsvParseResult.Error("Erro ao ler arquivo: ${e.message}")
@@ -110,97 +106,17 @@ class CsvBillParser @Inject constructor() {
 
                 val (installmentNumber, totalInstallments) = parseInstallments(description)
 
-                if (amount > 0) { // Only include expenses (negative values become positive)
-                    items.add(
-                        CsvBillItem(
-                            date = date,
-                            description = description,
-                            amount = amount,
-                            category = detectCategory(description),
-                            installmentNumber = installmentNumber,
-                            totalInstallments = totalInstallments
-                        )
+                items.add(
+                    CsvBillItem(
+                        date = date,
+                        description = description,
+                        amount = amount,
+                        category = detectCategory(description),
+                        installmentNumber = installmentNumber,
+                        totalInstallments = totalInstallments
                     )
-                }
-            } catch (e: Exception) {
-                return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
-            }
-        }
+                )
 
-        return CsvParseResult.Success(items)
-    }
-
-    // Inter format: Data;Lançamento;Valor (uses semicolons)
-    private fun parseInter(lines: List<String>): CsvParseResult {
-        val items = mutableListOf<CsvBillItem>()
-        val dataLines = skipHeader(lines, listOf("data", "lancamento", "lançamento"))
-
-        for ((index, line) in dataLines.withIndex()) {
-            if (line.isBlank()) continue
-
-            try {
-                val parts = line.split(";")
-                if (parts.size < 3) continue
-
-                val date = parseDate(parts[0].trim())
-                val description = parts[1].trim()
-                val amountStr = parts[2].trim().replace(".", "").replace(",", ".")
-                val amount = parseAmount(amountStr)
-
-                val (installmentNumber, totalInstallments) = parseInstallments(description)
-
-                if (amount > 0) {
-                    items.add(
-                        CsvBillItem(
-                            date = date,
-                            description = description,
-                            amount = amount,
-                            category = detectCategory(description),
-                            installmentNumber = installmentNumber,
-                            totalInstallments = totalInstallments
-                        )
-                    )
-                }
-            } catch (e: Exception) {
-                return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
-            }
-        }
-
-        return CsvParseResult.Success(items)
-    }
-
-    // C6 Bank format
-    private fun parseC6Bank(lines: List<String>): CsvParseResult {
-        val items = mutableListOf<CsvBillItem>()
-        val dataLines = skipHeader(lines, listOf("data", "compra"))
-
-        for ((index, line) in dataLines.withIndex()) {
-            if (line.isBlank()) continue
-
-            try {
-                val parts = line.split(";")
-                if (parts.size < 3) continue
-
-                val date = parseDate(parts[0].trim())
-                val description = parts[1].trim()
-                val amountStr = parts[2].trim().replace("R$", "").replace(".", "").replace(",", ".").trim()
-                val amount = parseAmount(amountStr)
-
-                // Parse installments if present (e.g., "Compra X parcela 2/6")
-                val (installmentNumber, totalInstallments) = parseInstallments(description)
-
-                if (amount > 0) {
-                    items.add(
-                        CsvBillItem(
-                            date = date,
-                            description = description,
-                            amount = amount,
-                            category = detectCategory(description),
-                            installmentNumber = installmentNumber,
-                            totalInstallments = totalInstallments
-                        )
-                    )
-                }
             } catch (e: Exception) {
                 return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
             }
@@ -213,84 +129,6 @@ class CsvBillParser @Inject constructor() {
     private fun parseItau(lines: List<String>): CsvParseResult {
         val items = mutableListOf<CsvBillItem>()
         val dataLines = skipHeader(lines, listOf("data", "histórico", "historico"))
-
-        for ((index, line) in dataLines.withIndex()) {
-            if (line.isBlank()) continue
-
-            try {
-                val parts = line.split(";")
-                if (parts.size < 3) continue
-
-                val date = parseDate(parts[0].trim())
-                val description = parts[1].trim()
-                val amountStr = parts[2].trim().replace(".", "").replace(",", ".")
-                val amount = parseAmount(amountStr)
-
-                val (installmentNumber, totalInstallments) = parseInstallments(description)
-
-                if (amount > 0) {
-                    items.add(
-                        CsvBillItem(
-                            date = date,
-                            description = description,
-                            amount = amount,
-                            category = detectCategory(description),
-                            installmentNumber = installmentNumber,
-                            totalInstallments = totalInstallments
-                        )
-                    )
-                }
-            } catch (e: Exception) {
-                return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
-            }
-        }
-
-        return CsvParseResult.Success(items)
-    }
-
-    // Bradesco format
-    private fun parseBradesco(lines: List<String>): CsvParseResult {
-        val items = mutableListOf<CsvBillItem>()
-        val dataLines = skipHeader(lines, listOf("data", "descrição", "descricao"))
-
-        for ((index, line) in dataLines.withIndex()) {
-            if (line.isBlank()) continue
-
-            try {
-                val parts = line.split(";")
-                if (parts.size < 3) continue
-
-                val date = parseDate(parts[0].trim())
-                val description = parts[1].trim()
-                val amountStr = parts[2].trim().replace(".", "").replace(",", ".")
-                val amount = parseAmount(amountStr)
-
-                val (installmentNumber, totalInstallments) = parseInstallments(description)
-
-                if (amount > 0) {
-                    items.add(
-                        CsvBillItem(
-                            date = date,
-                            description = description,
-                            amount = amount,
-                            category = detectCategory(description),
-                            installmentNumber = installmentNumber,
-                            totalInstallments = totalInstallments
-                        )
-                    )
-                }
-            } catch (e: Exception) {
-                return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
-            }
-        }
-
-        return CsvParseResult.Success(items)
-    }
-
-    // Santander format
-    private fun parseSantander(lines: List<String>): CsvParseResult {
-        val items = mutableListOf<CsvBillItem>()
-        val dataLines = skipHeader(lines, listOf("data", "descrição", "descricao"))
 
         for ((index, line) in dataLines.withIndex()) {
             if (line.isBlank()) continue
@@ -455,8 +293,9 @@ class CsvBillParser @Inject constructor() {
         val cleanAmount = amountStr
             .replace("R$", "")
             .replace("$", "")
-            .replace(",", "") // Remove thousand separators
             .replace(" ", "")
+            .replace(".", "")   // remove thousand separators FIRST
+            .replace(",", ".")  // then comma becomes the decimal point
             .trim()
 
         // Use BigDecimal for exact decimal arithmetic
@@ -467,8 +306,7 @@ class CsvBillParser @Inject constructor() {
         }
 
         // Convert to cents and ensure it's positive
-        val cents = value.abs()
-            .multiply(BigDecimal("100"))
+        val cents = value
             .setScale(0, RoundingMode.HALF_UP)
 
         return cents.toLong()
