@@ -154,39 +154,29 @@ class CsvBillParser @Inject constructor() {
             if (line.isBlank()) continue
 
             try {
-                val parts = line.split(",")
+                val parts = parse3FieldCsvLine(line, ',')
                 if (parts.size < 3) {
                     Log.w(TAG, "parseItau: skipping line ${index + 2}, not enough fields (${parts.size}): $line")
                     continue
                 }
 
-                val description = if (parts.size == 3) {
-                    parts[1].trim()
-                } else {
-                    // Handle case where description contains commas (unquoted)
-                    parts.subList(1, parts.size - 1).joinToString(",").trim()
-                }
-
                 val date = parseDate(parts[0].trim())
                 val amountStr = parts.last().trim()
                 val amount = parseAmount(amountStr)
+                val description = parts[1].trim()
 
                 val (installmentNumber, totalInstallments) = parseInstallments(description)
-
-                if (amount > 0) {
-                    items.add(
-                        CsvBillItem(
-                            date = date,
-                            description = description,
-                            amount = amount,
-                            category = detectCategory(description),
-                            installmentNumber = installmentNumber,
-                            totalInstallments = totalInstallments
-                        )
+                items.add(
+                    CsvBillItem(
+                        date = date,
+                        description = description,
+                        amount = amount,
+                        category = detectCategory(description),
+                        installmentNumber = installmentNumber,
+                        totalInstallments = totalInstallments
                     )
-                } else {
-                    Log.d(TAG, "parseItau: skipping line ${index + 2} with non-positive amount=$amount")
-                }
+                )
+
             } catch (e: Exception) {
                 Log.e(TAG, "parseItau: error on line ${index + 2}: $line", e)
                 return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
@@ -296,7 +286,7 @@ class CsvBillParser @Inject constructor() {
      */
     private fun parse3FieldCsvLine(line: String, delimiter: Char): List<String> {
         // First try standard parsing (handles quoted fields)
-        val standardParts = parseCsvLine(line, delimiter)
+        var standardParts = parseCsvLine(line, delimiter)
 
         // If we got exactly 3 parts, use them as-is
         if (standardParts.size == 3) {
@@ -307,6 +297,10 @@ class CsvBillParser @Inject constructor() {
         // Format: date,description (with commas),amount
         if (standardParts.size > 3) {
             val date = standardParts[0]
+
+            if (standardParts.last().isBlank()) { // Sometimes there is a comma at the end of the line
+                standardParts = standardParts.subList(0, standardParts.size - 1)
+            }
             val amount = standardParts.last()
             // Join all middle parts as description
             val description = standardParts.subList(1, standardParts.size - 1).joinToString(delimiter.toString())
@@ -331,23 +325,17 @@ class CsvBillParser @Inject constructor() {
     }
 
     private fun parseAmount(amountStr: String): Long {
-        val cleanAmount = amountStr
-            .replace("R$", "")
-            .replace("$", "")
-            .replace(" ", "")
-            .replace(".", "")
-            .replace(",", ".")
-            .trim()
 
         val value = try {
-            BigDecimal(cleanAmount)
+            BigDecimal(amountStr.trim())
         } catch (e: NumberFormatException) {
-            Log.w(TAG, "parseAmount: invalid amount string '$amountStr' (cleaned='$cleanAmount')")
+            Log.w(TAG, "parseAmount: invalid amount string '$amountStr' (cleaned='$amountStr')")
             throw IllegalArgumentException("Valor inválido: $amountStr")
         }
 
-        val cents = value.setScale(0, RoundingMode.HALF_UP)
-        return cents.toLong()
+        val cents = value.multiply(BigDecimal(100)).longValueExact()
+
+        return cents
     }
 
     private fun parseInstallments(description: String): Pair<Int, Int> {

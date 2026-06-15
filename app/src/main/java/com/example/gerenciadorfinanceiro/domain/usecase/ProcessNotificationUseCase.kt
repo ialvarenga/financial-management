@@ -1,18 +1,21 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
 import android.util.Log
+import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepository
 import com.example.gerenciadorfinanceiro.data.repository.ProcessedNotificationRepository
+import com.example.gerenciadorfinanceiro.domain.model.BillStatus
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
 import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.notification.NotificationParser
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 class ProcessNotificationUseCase @Inject constructor(
     private val parsers: Set<@JvmSuppressWildcards NotificationParser>,
     private val processedNotificationRepository: ProcessedNotificationRepository,
+    private val creditCardBillRepository: CreditCardBillRepository,
     private val createBankTransactionUseCase: CreateBankTransactionUseCase,
     private val createCreditCardPurchaseUseCase: CreateCreditCardPurchaseUseCase,
-    private val markBillAsPaidUseCase: MarkBillAsPaidUseCase,
     private val checkDuplicateNotificationUseCase: CheckDuplicateNotificationUseCase
 ) {
     suspend operator fun invoke(
@@ -31,13 +34,24 @@ class ProcessNotificationUseCase @Inject constructor(
             // Handle bill payment notifications
             if (parsed.isBillPayment) {
                 Log.d(TAG, "Processing bill payment notification")
-                markBillAsPaidUseCase.markLatestClosedBillAsPaid()
-                    .onSuccess {
-                        Log.i(TAG, "Successfully marked bill as paid from notification")
+                try {
+                    // Find the latest closed unpaid bill
+                    val bills = creditCardBillRepository.getBillsByStatus(BillStatus.CLOSED).first()
+                    val closedUnpaidBill = bills.maxByOrNull { it.year * 12 + it.month }
+
+                    if (closedUnpaidBill != null) {
+                        creditCardBillRepository.updateStatus(
+                            closedUnpaidBill.id,
+                            BillStatus.PAID,
+                            System.currentTimeMillis()
+                        )
+                        Log.i(TAG, "Successfully marked bill ${closedUnpaidBill.id} as paid from notification")
+                    } else {
+                        Log.w(TAG, "No closed unpaid bill found to mark as paid")
                     }
-                    .onFailure { e ->
-                        Log.e(TAG, "Failed to mark bill as paid: ${e.message}")
-                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to mark bill as paid: ${e.message}", e)
+                }
                 return Result.success(Unit)
             }
 

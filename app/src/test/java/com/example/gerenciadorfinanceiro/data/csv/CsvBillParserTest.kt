@@ -103,6 +103,6 @@ class CsvBillParserTest {
         assertTrue("Result should be success", result is CsvParseResult.Success)
         val items = (result as CsvParseResult.Success).items
 
-        assertEquals(69, items.size)
+        assertEquals(78, items.size)
     }
 }

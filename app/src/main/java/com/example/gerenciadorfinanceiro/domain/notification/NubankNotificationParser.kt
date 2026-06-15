@@ -13,10 +13,10 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
     private val transferSentPattern = Regex("Transferência enviada.*R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
     private val pixReimbursementPattern = Regex("Você recebeu um reembolso de R\\$\\s*([\\d.,]+)\\s*de\\s*(.+?)\\.", RegexOption.IGNORE_CASE)
     private val creditCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s*para o cartão com final\\s*(\\d{4})", RegexOption.IGNORE_CASE)
-    private val debitCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s+.*débito", RegexOption.IGNORE_CASE)
+    private val debitCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s+.*?débito", RegexOption.IGNORE_CASE)
     private val billPaymentPattern = Regex("fatura.*paga", RegexOption.IGNORE_CASE)
     private val nupayTitlePattern = Regex("Compra aprovada com Nupay de R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
-    private val nupayTextPattern = Regex("Compra em (\\d+)x no (Crédito|Débito).*APROVADA em\\s+(.+?)(?:\\s|$)", RegexOption.IGNORE_CASE)
+    private val nupayTextPattern = Regex("Compra em (\\d+)x no (Crédito|Débito).*APROVADA em\\s+(.+?)$", RegexOption.IGNORE_CASE)
 
     override fun canParse(source: NotificationSource): Boolean {
         return source == NotificationSource.NUBANK
@@ -99,7 +99,7 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
             return ParsedNotification(
                 source = NotificationSource.NUBANK,
                 amount = amount,
-                description = "Compra débito - $place",
+                description = place,
                 timestamp = timestamp,
                 transactionType = TransactionType.EXPENSE,
                 lastFourDigits = null,
