@@ -14,8 +14,9 @@ import com.example.gerenciadorfinanceiro.domain.usecase.CreateInstallmentPurchas
 import com.example.gerenciadorfinanceiro.domain.usecase.GetOrCreateBillUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.MoveCreditCardItemToBillUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.UpdateCreditCardItemUseCase
-import com.example.gerenciadorfinanceiro.util.toCents
-import com.example.gerenciadorfinanceiro.util.toReais
+import com.example.gerenciadorfinanceiro.ui.components.normalizeCurrencyDigits
+import com.example.gerenciadorfinanceiro.util.digitsToCents
+import com.example.gerenciadorfinanceiro.util.toDigitsString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -24,6 +25,7 @@ import javax.inject.Inject
 data class AddEditCreditCardItemUiState(
     val description: String = "",
     val amount: String = "",
+    val isNegative: Boolean = false,
     val category: Category = Category.OTHER,
     val purchaseDate: Long = System.currentTimeMillis(),
     val installments: Int = 1,
@@ -93,7 +95,8 @@ class AddEditCreditCardItemViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         description = item.description,
-                        amount = item.amount.toReais().replace("R$ ", "").replace(".", ""),
+                        amount = item.amount.toDigitsString(),
+                        isNegative = item.amount < 0,
                         category = item.category,
                         purchaseDate = item.purchaseDate,
                         installments = item.totalInstallments,
@@ -128,7 +131,19 @@ class AddEditCreditCardItemViewModel @Inject constructor(
     }
 
     fun onAmountChange(amount: String) {
-        _uiState.update { it.copy(amount = amount, errorMessage = null) }
+        _uiState.update { it.copy(amount = normalizeCurrencyDigits(amount), errorMessage = null) }
+    }
+
+    fun onSignChange(negative: Boolean) {
+        _uiState.update {
+            it.copy(
+                isNegative = negative,
+                // Estornos são sempre item único, nunca parcelados
+                installments = if (negative) 1 else it.installments,
+                isConvertingToInstallment = if (negative) false else it.isConvertingToInstallment,
+                errorMessage = null
+            )
+        }
     }
 
     fun onCategoryChange(category: Category) {
@@ -182,9 +197,14 @@ class AddEditCreditCardItemViewModel @Inject constructor(
             return
         }
 
-        val amountInCents = currentState.amount.toCents()
-        if (amountInCents == null || amountInCents <= 0) {
+        val unsignedCents = currentState.amount.digitsToCents()
+        if (unsignedCents == null || unsignedCents == 0L) {
             _uiState.update { it.copy(errorMessage = "Valor inválido") }
+            return
+        }
+        val amountInCents = if (currentState.isNegative) -unsignedCents else unsignedCents
+        if (amountInCents < 0 && currentState.installments > 1) {
+            _uiState.update { it.copy(errorMessage = "Estornos não podem ser parcelados") }
             return
         }
 

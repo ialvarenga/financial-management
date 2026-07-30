@@ -8,6 +8,9 @@ import com.example.gerenciadorfinanceiro.data.local.entity.CreditCard
 import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardRepository
 import com.example.gerenciadorfinanceiro.domain.model.Bank
+import com.example.gerenciadorfinanceiro.ui.components.normalizeCurrencyDigits
+import com.example.gerenciadorfinanceiro.util.digitsToCents
+import com.example.gerenciadorfinanceiro.util.toDigitsString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -61,7 +64,7 @@ class AddEditCreditCardViewModel @Inject constructor(
                     it.copy(
                         name = card.name,
                         lastFourDigits = card.lastFourDigits,
-                        creditLimit = (card.creditLimit / 100.0).toString(),
+                        creditLimit = card.creditLimit.toDigitsString(),
                         bank = card.bank,
                         closingDay = card.closingDay.toString(),
                         dueDay = card.dueDay.toString(),
@@ -87,7 +90,7 @@ class AddEditCreditCardViewModel @Inject constructor(
     }
 
     fun onCreditLimitChange(limit: String) {
-        _uiState.update { it.copy(creditLimit = limit, errorMessage = null) }
+        _uiState.update { it.copy(creditLimit = normalizeCurrencyDigits(limit), errorMessage = null) }
     }
 
     fun onBankChange(bank: Bank) {
@@ -124,7 +127,7 @@ class AddEditCreditCardViewModel @Inject constructor(
             return
         }
 
-        val limitInCents = currentState.creditLimit.toDoubleOrNull()?.let { (it * 100).toLong() }
+        val limitInCents = currentState.creditLimit.digitsToCents()
         if (limitInCents == null || limitInCents <= 0) {
             _uiState.update { it.copy(errorMessage = "Limite inválido") }
             return

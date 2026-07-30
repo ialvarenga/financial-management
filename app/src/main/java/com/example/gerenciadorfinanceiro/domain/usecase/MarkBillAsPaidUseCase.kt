@@ -35,6 +35,14 @@ class MarkBillAsPaidUseCase @Inject constructor(
                 Log.w(TAG, "Bill $billId is not closed, marking as paid anyway")
             }
 
+            // Bills with net-negative or zero total (refunds exceeding charges) have
+            // nothing to pay — mark as paid without booking a payment transaction
+            if (bill.totalAmount <= 0L) {
+                billRepository.updateStatus(billId, BillStatus.PAID, System.currentTimeMillis())
+                Log.i(TAG, "Bill $billId total is ${bill.totalAmount}, marked as paid without transaction")
+                return Result.success(Unit)
+            }
+
             // Create a transaction for the bill payment
             val transaction = Transaction(
                 accountId = accountId,

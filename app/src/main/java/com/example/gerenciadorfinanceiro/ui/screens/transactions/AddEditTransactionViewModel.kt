@@ -15,7 +15,9 @@ import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import com.example.gerenciadorfinanceiro.domain.usecase.CreateTransactionUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.UpdateTransactionUseCase
-import com.example.gerenciadorfinanceiro.util.toCents
+import com.example.gerenciadorfinanceiro.ui.components.normalizeCurrencyDigits
+import com.example.gerenciadorfinanceiro.util.digitsToCents
+import com.example.gerenciadorfinanceiro.util.toDigitsString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -99,7 +101,7 @@ class AddEditTransactionViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         description = transaction.description,
-                        amount = (transaction.amount / 100.0).toString().replace('.', ','),
+                        amount = transaction.amount.toDigitsString(),
                         type = transaction.type,
                         category = transaction.category,
                         selectedAccount = transactionWithAccount.account,
@@ -123,7 +125,7 @@ class AddEditTransactionViewModel @Inject constructor(
     }
 
     fun onAmountChange(amount: String) {
-        _uiState.update { it.copy(amount = amount, errorMessage = null) }
+        _uiState.update { it.copy(amount = normalizeCurrencyDigits(amount), errorMessage = null) }
     }
 
     fun onTypeChange(type: TransactionType) {
@@ -177,7 +179,7 @@ class AddEditTransactionViewModel @Inject constructor(
             return
         }
 
-        val amountCents = currentState.amount.toCents()
+        val amountCents = currentState.amount.digitsToCents()
         if (amountCents == null || amountCents <= 0) {
             _uiState.update { it.copy(errorMessage = "Valor inválido") }
             return

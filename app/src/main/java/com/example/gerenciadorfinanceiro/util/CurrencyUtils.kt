@@ -31,3 +31,15 @@ fun String.toCents(): Long? {
     }
 }
 
+/**
+ * Digits-only input string -> cents. "1234" means 1234 cents (R$ 12,34).
+ * Returns null if empty or not a valid number.
+ */
+fun String.digitsToCents(): Long? = if (isEmpty()) null else toLongOrNull()
+
+/**
+ * Cents -> digits-only input string for prefilling currency fields.
+ * Sign is dropped (handled separately by the UI). 0 -> "".
+ */
+fun Long.toDigitsString(): String = if (this == 0L) "" else kotlin.math.abs(this).toString()
+

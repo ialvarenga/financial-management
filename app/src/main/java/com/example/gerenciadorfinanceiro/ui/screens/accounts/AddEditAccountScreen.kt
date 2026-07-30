@@ -16,6 +16,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.Bank
+import com.example.gerenciadorfinanceiro.ui.components.CurrencyTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -152,20 +153,18 @@ fun AddEditAccountScreen(
             )
 
             // Balance field
-            OutlinedTextField(
-                value = uiState.balance,
+            CurrencyTextField(
+                valueDigits = uiState.balance,
                 onValueChange = viewModel::onBalanceChange,
-                label = { Text("Saldo inicial") },
+                label = { Text("Saldo inicial (R$)") },
                 modifier = Modifier.fillMaxWidth(),
                 isError = uiState.errorMessage == "Saldo inválido",
                 supportingText = if (uiState.errorMessage == "Saldo inválido") {
                     { Text(uiState.errorMessage!!) }
-                } else {
-                    { Text("Use vírgula para separar os centavos (ex: 1000,50)") }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                prefix = { Text("R$ ") }
+                } else null,
+                allowNegative = true,
+                isNegative = uiState.isNegative,
+                onSignChange = viewModel::onSignChange
             )
 
             Spacer(modifier = Modifier.weight(1f))

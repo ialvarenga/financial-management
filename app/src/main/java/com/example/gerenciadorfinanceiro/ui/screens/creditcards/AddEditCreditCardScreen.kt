@@ -15,6 +15,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.Bank
+import com.example.gerenciadorfinanceiro.ui.components.CurrencyTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,14 +76,12 @@ fun AddEditCreditCardScreen(
             )
 
             // Credit Limit
-            OutlinedTextField(
-                value = uiState.creditLimit,
+            CurrencyTextField(
+                valueDigits = uiState.creditLimit,
                 onValueChange = viewModel::onCreditLimitChange,
                 label = { Text("Limite do cartão (R$)") },
-                placeholder = { Text("0.00") },
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true
+                isError = uiState.errorMessage?.contains("Limite") == true
             )
 
             // Bank Dropdown

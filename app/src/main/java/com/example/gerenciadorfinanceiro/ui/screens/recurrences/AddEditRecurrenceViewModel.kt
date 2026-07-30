@@ -13,7 +13,9 @@ import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.model.Frequency
 import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
-import com.example.gerenciadorfinanceiro.util.toCents
+import com.example.gerenciadorfinanceiro.ui.components.normalizeCurrencyDigits
+import com.example.gerenciadorfinanceiro.util.digitsToCents
+import com.example.gerenciadorfinanceiro.util.toDigitsString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -105,7 +107,7 @@ class AddEditRecurrenceViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         description = recurrence.description,
-                        amount = (recurrence.amount / 100.0).toString().replace('.', ','),
+                        amount = recurrence.amount.toDigitsString(),
                         type = recurrence.type,
                         category = recurrence.category,
                         paymentMethod = recurrence.paymentMethod,
@@ -133,7 +135,7 @@ class AddEditRecurrenceViewModel @Inject constructor(
     }
 
     fun onAmountChange(amount: String) {
-        _uiState.update { it.copy(amount = amount, errorMessage = null) }
+        _uiState.update { it.copy(amount = normalizeCurrencyDigits(amount), errorMessage = null) }
     }
 
     fun onTypeChange(type: TransactionType) {
@@ -199,7 +201,7 @@ class AddEditRecurrenceViewModel @Inject constructor(
             return
         }
 
-        val amountInCents = currentState.amount.toCents()
+        val amountInCents = currentState.amount.digitsToCents()
         if (amountInCents == null || amountInCents <= 0) {
             _uiState.update { it.copy(errorMessage = "Valor inválido") }
             return

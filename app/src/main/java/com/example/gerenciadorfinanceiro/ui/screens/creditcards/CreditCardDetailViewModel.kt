@@ -104,8 +104,9 @@ class CreditCardDetailViewModel @Inject constructor(
             currentMonthBill
         }
 
-        // Calculate available limit
-        val availableLimit = (card?.creditLimit ?: 0) - usedLimit
+        // Calculate available limit (refunds can push the raw sum negative)
+        val clampedUsedLimit = usedLimit.coerceAtLeast(0)
+        val availableLimit = (card?.creditLimit ?: 0) - clampedUsedLimit
 
         // Apply status filter
         val filteredBills = when (statusFilter) {
@@ -128,7 +129,7 @@ class CreditCardDetailViewModel @Inject constructor(
             currentBillItems = emptyList(),
             billHistory = sortedBills,
             billItems = emptyMap(),
-            usedLimit = usedLimit,
+            usedLimit = clampedUsedLimit,
             availableLimit = availableLimit.coerceAtLeast(0),
             statusFilter = statusFilter,
             sortOrder = sortOrder,

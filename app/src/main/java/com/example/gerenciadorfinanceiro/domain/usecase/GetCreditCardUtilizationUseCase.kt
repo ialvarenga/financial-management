@@ -32,7 +32,7 @@ class GetCreditCardUtilizationUseCase @Inject constructor(
                             available = card.creditLimit - used,
                             limit = card.creditLimit,
                             utilizationPercentage = if (card.creditLimit > 0) {
-                                (used.toFloat() / card.creditLimit * 100)
+                                (used.toFloat() / card.creditLimit * 100).coerceAtLeast(0f)
                             } else 0f
                         )
                     }

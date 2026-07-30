@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.gerenciadorfinanceiro.data.local.entity.Account
 import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
 import com.example.gerenciadorfinanceiro.domain.model.Bank
+import com.example.gerenciadorfinanceiro.ui.components.normalizeCurrencyDigits
+import com.example.gerenciadorfinanceiro.util.digitsToCents
+import com.example.gerenciadorfinanceiro.util.toDigitsString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -17,6 +20,7 @@ data class AddEditAccountUiState(
     val number: String = "",
     val bank: Bank = Bank.NUBANK,
     val balance: String = "",
+    val isNegative: Boolean = false,
     val isEditing: Boolean = false,
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
@@ -52,7 +56,8 @@ class AddEditAccountViewModel @Inject constructor(
                         agency = account.agency,
                         number = account.number,
                         bank = account.bank,
-                        balance = formatBalanceForInput(account.balance),
+                        balance = account.balance.toDigitsString(),
+                        isNegative = account.balance < 0,
                         isEditing = true,
                         isLoading = false
                     )
@@ -80,7 +85,11 @@ class AddEditAccountViewModel @Inject constructor(
     }
 
     fun onBalanceChange(balance: String) {
-        _uiState.update { it.copy(balance = balance) }
+        _uiState.update { it.copy(balance = normalizeCurrencyDigits(balance)) }
+    }
+
+    fun onSignChange(negative: Boolean) {
+        _uiState.update { it.copy(isNegative = negative) }
     }
 
     fun save() {
@@ -101,11 +110,12 @@ class AddEditAccountViewModel @Inject constructor(
             return
         }
 
-        val balanceInCents = parseBalanceToCents(currentState.balance)
-        if (balanceInCents == null) {
+        val unsignedBalance = if (currentState.balance.isEmpty()) 0L else currentState.balance.digitsToCents()
+        if (unsignedBalance == null) {
             _uiState.update { it.copy(errorMessage = "Saldo inválido") }
             return
         }
+        val balanceInCents = if (currentState.isNegative) -unsignedBalance else unsignedBalance
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -145,24 +155,4 @@ class AddEditAccountViewModel @Inject constructor(
         }
     }
 
-    private fun parseBalanceToCents(balance: String): Long? {
-        return try {
-            val cleaned = balance
-                .replace("R$", "")
-                .replace(".", "")
-                .replace(",", ".")
-                .trim()
-
-            if (cleaned.isEmpty()) return 0L
-
-            (cleaned.toDouble() * 100).toLong()
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun formatBalanceForInput(cents: Long): String {
-        val value = cents / 100.0
-        return String.format("%.2f", value)
-    }
 }

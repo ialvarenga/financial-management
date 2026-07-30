@@ -10,6 +10,9 @@ import com.example.gerenciadorfinanceiro.data.repository.TransferRepository
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
 import com.example.gerenciadorfinanceiro.domain.usecase.CompleteTransferUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.ExecuteTransferUseCase
+import com.example.gerenciadorfinanceiro.ui.components.normalizeCurrencyDigits
+import com.example.gerenciadorfinanceiro.util.digitsToCents
+import com.example.gerenciadorfinanceiro.util.toDigitsString
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -71,8 +74,8 @@ class AddTransferViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         description = transfer.description,
-                        amount = (transfer.amount / 100.0).toString().replace(".", ","),
-                        fee = if (transfer.fee > 0) (transfer.fee / 100.0).toString().replace(".", ",") else "",
+                        amount = transfer.amount.toDigitsString(),
+                        fee = if (transfer.fee > 0) transfer.fee.toDigitsString() else "",
                         fromAccount = fromAccount,
                         toAccount = toAccount,
                         status = transfer.status,
@@ -93,15 +96,11 @@ class AddTransferViewModel @Inject constructor(
     }
 
     fun onAmountChange(value: String) {
-        // Only allow numbers and comma
-        val filtered = value.filter { it.isDigit() || it == ',' }
-        _uiState.update { it.copy(amount = filtered, errorMessage = null) }
+        _uiState.update { it.copy(amount = normalizeCurrencyDigits(value), errorMessage = null) }
     }
 
     fun onFeeChange(value: String) {
-        // Only allow numbers and comma
-        val filtered = value.filter { it.isDigit() || it == ',' }
-        _uiState.update { it.copy(fee = filtered, errorMessage = null) }
+        _uiState.update { it.copy(fee = normalizeCurrencyDigits(value), errorMessage = null) }
     }
 
     fun onFromAccountChange(account: Account) {
@@ -143,7 +142,7 @@ class AddTransferViewModel @Inject constructor(
             return
         }
 
-        val amountCents = parseAmountToCents(state.amount)
+        val amountCents = state.amount.digitsToCents() ?: 0L
         if (amountCents <= 0) {
             _uiState.update { it.copy(errorMessage = "Valor deve ser maior que zero") }
             return
@@ -164,7 +163,7 @@ class AddTransferViewModel @Inject constructor(
             return
         }
 
-        val feeCents = if (state.fee.isNotBlank()) parseAmountToCents(state.fee) else 0L
+        val feeCents = state.fee.digitsToCents() ?: 0L
 
         viewModelScope.launch {
             try {
@@ -196,13 +195,5 @@ class AddTransferViewModel @Inject constructor(
         }
     }
 
-    private fun parseAmountToCents(amount: String): Long {
-        return try {
-            val normalized = amount.replace(",", ".")
-            (normalized.toDouble() * 100).toLong()
-        } catch (e: Exception) {
-            0L
-        }
-    }
 }
 

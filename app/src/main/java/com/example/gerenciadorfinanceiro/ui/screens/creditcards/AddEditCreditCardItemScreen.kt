@@ -3,17 +3,16 @@ package com.example.gerenciadorfinanceiro.ui.screens.creditcards
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.Category
+import com.example.gerenciadorfinanceiro.ui.components.CurrencyTextField
 import com.example.gerenciadorfinanceiro.util.toReais
 import java.time.Instant
 import java.time.ZoneId
@@ -184,16 +183,16 @@ fun AddEditCreditCardItemScreen(
             )
 
             // Amount
-            OutlinedTextField(
-                value = uiState.amount,
+            CurrencyTextField(
+                valueDigits = uiState.amount,
                 onValueChange = viewModel::onAmountChange,
                 label = { Text("Valor (R$)") },
                 modifier = Modifier.fillMaxWidth(),
-                isError = uiState.errorMessage?.contains("Valor") == true,
-                leadingIcon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
-                singleLine = true,
-                placeholder = { Text("0,00") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                isError = uiState.errorMessage?.contains("Valor") == true ||
+                        uiState.errorMessage?.contains("Estornos") == true,
+                allowNegative = true,
+                isNegative = uiState.isNegative,
+                onSignChange = viewModel::onSignChange
             )
 
             // Date with DatePicker
@@ -306,7 +305,7 @@ fun AddEditCreditCardItemScreen(
             // Check original item's installments, not current UI state (which changes when converting)
             val canEditInstallments = !uiState.isEditing || (uiState.editingItem?.totalInstallments ?: 1) == 1
 
-            if (canEditInstallments) {
+            if (canEditInstallments && !uiState.isNegative) {
                 // For editing single items, show option to convert to installment
                 if (uiState.isEditing && uiState.editingItem?.totalInstallments == 1) {
                     Row(
@@ -470,7 +469,7 @@ fun AddEditCreditCardItemScreen(
                         }
                     }
                 }
-            } else {
+            } else if (!uiState.isNegative) {
                 // Show read-only installment info for items in installment groups
                 OutlinedTextField(
                     value = "Parcela ${uiState.editingItem?.installmentNumber}/${uiState.installments}",
