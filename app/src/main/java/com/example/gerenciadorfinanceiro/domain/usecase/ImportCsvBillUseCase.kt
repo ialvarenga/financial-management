@@ -2,6 +2,7 @@ package com.example.gerenciadorfinanceiro.domain.usecase
 
 import com.example.gerenciadorfinanceiro.data.csv.CsvBillParser
 import com.example.gerenciadorfinanceiro.data.csv.CsvFormat
+import com.example.gerenciadorfinanceiro.data.csv.CsvImportConfig
 import com.example.gerenciadorfinanceiro.data.csv.CsvParseResult
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepository
@@ -188,8 +189,8 @@ class ImportCsvBillUseCase @Inject constructor(
     /**
      * Parse CSV and return preview of items without importing
      */
-    fun parsePreview(inputStream: InputStream, format: CsvFormat): CsvParseResult {
-        return csvParser.parse(inputStream, format)
+    fun parsePreview(inputStream: InputStream, format: CsvFormat, config: CsvImportConfig? = null): CsvParseResult {
+        return csvParser.parse(inputStream, format, config)
     }
 
     /**

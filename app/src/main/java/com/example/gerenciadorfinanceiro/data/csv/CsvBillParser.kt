@@ -10,6 +10,7 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,11 +24,17 @@ enum class CsvFormat(val displayName: String) {
     ITAU("Itaú"),
     BRADESCO("Bradesco"),
     SANTANDER("Santander"),
-    GENERIC("Genérico (Data;Descrição;Valor)")
+    GENERIC("Genérico (Data;Descrição;Valor)"),
+    CUSTOM("Personalizado")
 }
 
+data class SkippedLine(val lineNumber: Int, val content: String, val reason: String)
+
 sealed class CsvParseResult {
-    data class Success(val items: List<CsvBillItem>) : CsvParseResult()
+    data class Success(
+        val items: List<CsvBillItem>,
+        val skippedLines: List<SkippedLine> = emptyList()
+    ) : CsvParseResult()
     data class Error(val message: String, val line: Int? = null) : CsvParseResult()
 }
 
@@ -45,9 +52,10 @@ class CsvBillParser @Inject constructor() {
      * Parse a CSV file from an InputStream
      * @param inputStream The input stream of the CSV file
      * @param format The CSV format to use for parsing
+     * @param config Custom parsing parameters, used only when format is CUSTOM
      * @return CsvParseResult containing parsed items or an error
      */
-    fun parse(inputStream: InputStream, format: CsvFormat): CsvParseResult {
+    fun parse(inputStream: InputStream, format: CsvFormat, config: CsvImportConfig? = null): CsvParseResult {
         return try {
             val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
             val lines = reader.readLines()
@@ -63,6 +71,7 @@ class CsvBillParser @Inject constructor() {
             when (format) {
                 CsvFormat.NUBANK -> parseNubank(lines)
                 CsvFormat.ITAU -> parseItau(lines)
+                CsvFormat.CUSTOM -> parseCustom(lines, config ?: CsvImportConfig())
                 else -> parseGeneric(lines)
             }
         } catch (e: Exception) {
@@ -249,6 +258,92 @@ class CsvBillParser @Inject constructor() {
 
         Log.d(TAG, "parseGeneric: parsed ${items.size} items")
         return CsvParseResult.Success(items)
+    }
+
+    // Custom format: user-defined columns, delimiter, date/decimal format and skip rows.
+    // Tolerant: bad lines are collected as SkippedLine instead of aborting the import.
+    private fun parseCustom(lines: List<String>, config: CsvImportConfig): CsvParseResult {
+        val dateFormatter = try {
+            DateTimeFormatter.ofPattern(config.datePattern)
+        } catch (e: IllegalArgumentException) {
+            return CsvParseResult.Error("Formato de data inválido: ${config.datePattern}")
+        }
+
+        val items = mutableListOf<CsvBillItem>()
+        val skipped = mutableListOf<SkippedLine>()
+        val maxColumn = maxOf(config.dateColumn, config.descriptionColumn, config.amountColumn)
+        val dataLines = lines.drop(config.skipRows)
+        Log.d(TAG, "parseCustom: ${dataLines.size} data lines, config=$config")
+
+        for ((index, line) in dataLines.withIndex()) {
+            if (line.isBlank()) continue
+            val lineNumber = index + config.skipRows + 1
+
+            try {
+                val parts = parseCsvLine(line, config.delimiter.char)
+                if (parts.size < maxColumn) {
+                    skipped.add(SkippedLine(lineNumber, line, "Colunas insuficientes (${parts.size})"))
+                    continue
+                }
+
+                val date = LocalDate.parse(parts[config.dateColumn - 1].trim(), dateFormatter)
+                val description = parts[config.descriptionColumn - 1].trim()
+                val amount = parseAmountCustom(parts[config.amountColumn - 1], config.decimalStyle)
+
+                if (amount < 0 && config.negativeHandling == NegativeHandling.SKIP) {
+                    skipped.add(SkippedLine(lineNumber, line, "Valor negativo ignorado"))
+                    continue
+                }
+
+                val (installmentNumber, totalInstallments) = parseInstallments(description)
+                items.add(
+                    CsvBillItem(
+                        date = date,
+                        description = description,
+                        amount = amount,
+                        category = detectCategory(description),
+                        installmentNumber = installmentNumber,
+                        totalInstallments = totalInstallments
+                    )
+                )
+            } catch (e: DateTimeParseException) {
+                skipped.add(SkippedLine(lineNumber, line, "Data inválida"))
+            } catch (e: Exception) {
+                Log.w(TAG, "parseCustom: error on line $lineNumber: $line", e)
+                skipped.add(SkippedLine(lineNumber, line, e.message ?: "Erro ao interpretar linha"))
+            }
+        }
+
+        Log.d(TAG, "parseCustom: parsed ${items.size} items, skipped ${skipped.size} lines")
+
+        if (items.isEmpty()) {
+            val firstReason = skipped.firstOrNull()?.reason ?: "arquivo vazio"
+            return CsvParseResult.Error(
+                "Nenhuma linha pôde ser interpretada. Verifique as colunas e o delimitador. Primeiro erro: $firstReason"
+            )
+        }
+
+        return CsvParseResult.Success(items, skipped)
+    }
+
+    private fun parseAmountCustom(raw: String, style: DecimalStyle): Long {
+        val cleaned = raw
+            .replace("R$", "")
+            .replace("$", "")
+            .replace("\"", "")
+            .trim()
+        val normalized = when (style) {
+            DecimalStyle.BRAZILIAN -> cleaned.replace(".", "").replace(",", ".")
+            DecimalStyle.US -> cleaned.replace(",", "")
+        }
+
+        val value = try {
+            BigDecimal(normalized)
+        } catch (e: NumberFormatException) {
+            throw IllegalArgumentException("Valor inválido: $raw")
+        }
+
+        return value.setScale(2, RoundingMode.HALF_UP).multiply(BigDecimal(100)).longValueExact()
     }
 
     private fun skipHeader(lines: List<String>, headerKeywords: List<String>): List<String> {

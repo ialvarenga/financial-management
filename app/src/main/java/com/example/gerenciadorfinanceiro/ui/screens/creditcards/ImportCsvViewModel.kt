@@ -5,9 +5,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gerenciadorfinanceiro.data.csv.CsvFormat
+import com.example.gerenciadorfinanceiro.data.csv.CsvImportConfig
 import com.example.gerenciadorfinanceiro.data.csv.CsvParseResult
+import com.example.gerenciadorfinanceiro.data.csv.SkippedLine
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCard
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardRepository
+import com.example.gerenciadorfinanceiro.data.repository.SettingsRepository
 import com.example.gerenciadorfinanceiro.domain.model.CsvBillItem
 import com.example.gerenciadorfinanceiro.domain.usecase.ImportCsvBillUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.ImportResult
@@ -15,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.InputStream
@@ -24,6 +28,8 @@ import javax.inject.Inject
 data class ImportCsvUiState(
     val creditCard: CreditCard? = null,
     val selectedFormat: CsvFormat = CsvFormat.GENERIC,
+    val customConfig: CsvImportConfig = CsvImportConfig(),
+    val skippedLines: List<SkippedLine> = emptyList(),
     val selectedMonth: Int = LocalDate.now().monthValue,
     val selectedYear: Int = LocalDate.now().year,
     val fileUri: Uri? = null,
@@ -54,16 +60,30 @@ enum class ImportStep {
 class ImportCsvViewModel @Inject constructor(
     private val importCsvBillUseCase: ImportCsvBillUseCase,
     private val creditCardRepository: CreditCardRepository,
+    private val settingsRepository: SettingsRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
-    
+
     private val cardId: Long = savedStateHandle.get<String>("cardId")?.toLongOrNull() ?: -1
-    
+
     private val _uiState = MutableStateFlow(ImportCsvUiState())
     val uiState: StateFlow<ImportCsvUiState> = _uiState.asStateFlow()
-    
+
     init {
         loadCreditCard()
+        loadCustomConfig()
+    }
+
+    private fun loadCustomConfig() {
+        viewModelScope.launch {
+            // Load once so the persisted config doesn't overwrite in-flight user edits
+            val config = settingsRepository.getCsvImportConfig().first()
+            _uiState.update { it.copy(customConfig = config) }
+        }
+    }
+
+    fun updateCustomConfig(config: CsvImportConfig) {
+        _uiState.update { it.copy(customConfig = config) }
     }
     
     private fun loadCreditCard() {
@@ -123,13 +143,15 @@ class ImportCsvViewModel @Inject constructor(
             )
         }
         
-        // Try to auto-detect format
-        val detectedFormat = getInputStream()?.let { stream ->
-            importCsvBillUseCase.detectFormat(stream)
-        }
-        
-        if (detectedFormat != null) {
-            _uiState.update { it.copy(selectedFormat = detectedFormat) }
+        // Auto-detect format, unless the user manually chose the custom format
+        if (_uiState.value.selectedFormat != CsvFormat.CUSTOM) {
+            val detectedFormat = getInputStream()?.let { stream ->
+                importCsvBillUseCase.detectFormat(stream)
+            }
+
+            if (detectedFormat != null) {
+                _uiState.update { it.copy(selectedFormat = detectedFormat) }
+            }
         }
     }
     
@@ -142,8 +164,10 @@ class ImportCsvViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isParsing = true, errorMessage = null) }
             
-            val result = importCsvBillUseCase.parsePreview(inputStream, _uiState.value.selectedFormat)
-            
+            val state = _uiState.value
+            val config = state.customConfig.takeIf { state.selectedFormat == CsvFormat.CUSTOM }
+            val result = importCsvBillUseCase.parsePreview(inputStream, state.selectedFormat, config)
+
             when (result) {
                 is CsvParseResult.Success -> {
                     val allIndices = result.items.indices.toSet()
@@ -153,8 +177,13 @@ class ImportCsvViewModel @Inject constructor(
                             previewItems = result.items,
                             selectedItems = allIndices, // Select all by default
                             previewTotal = result.items.sumOf { item -> item.amount },
+                            skippedLines = result.skippedLines,
                             step = ImportStep.PREVIEW
                         )
+                    }
+                    // Persist the config that just worked
+                    if (config != null) {
+                        launch { settingsRepository.setCsvImportConfig(config) }
                     }
                 }
                 is CsvParseResult.Error -> {
@@ -253,12 +282,13 @@ class ImportCsvViewModel @Inject constructor(
         val currentStep = _uiState.value.step
         when (currentStep) {
             ImportStep.PREVIEW -> {
-                _uiState.update { 
+                _uiState.update {
                     it.copy(
                         step = ImportStep.SELECT_FILE,
                         previewItems = emptyList(),
                         selectedItems = emptySet(),
-                        previewTotal = 0
+                        previewTotal = 0,
+                        skippedLines = emptyList()
                     )
                 }
             }
@@ -270,6 +300,7 @@ class ImportCsvViewModel @Inject constructor(
         _uiState.update { 
             ImportCsvUiState(
                 creditCard = it.creditCard,
+                customConfig = it.customConfig,
                 selectedMonth = LocalDate.now().monthValue,
                 selectedYear = LocalDate.now().year
             )

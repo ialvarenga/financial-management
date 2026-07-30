@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
@@ -17,11 +18,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.gerenciadorfinanceiro.data.csv.CsvDelimiter
 import com.example.gerenciadorfinanceiro.data.csv.CsvFormat
+import com.example.gerenciadorfinanceiro.data.csv.CsvImportConfig
+import com.example.gerenciadorfinanceiro.data.csv.DecimalStyle
+import com.example.gerenciadorfinanceiro.data.csv.NegativeHandling
 import com.example.gerenciadorfinanceiro.domain.model.CsvBillItem
 import com.example.gerenciadorfinanceiro.util.formatMonthYear
 import com.example.gerenciadorfinanceiro.util.toReais
@@ -88,6 +94,7 @@ fun ImportCsvScreen(
                             filePickerLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*"))
                         },
                         onFormatSelected = viewModel::setFormat,
+                        onConfigChange = viewModel::updateCustomConfig,
                         onPreviousMonth = viewModel::selectPreviousMonth,
                         onNextMonth = viewModel::selectNextMonth,
                         onParseFile = {
@@ -141,6 +148,7 @@ private fun SelectFileContent(
     uiState: ImportCsvUiState,
     onSelectFile: () -> Unit,
     onFormatSelected: (CsvFormat) -> Unit,
+    onConfigChange: (CsvImportConfig) -> Unit,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onParseFile: () -> Unit
@@ -269,6 +277,16 @@ private fun SelectFileContent(
             }
         }
 
+        // Custom Format Configuration
+        if (uiState.selectedFormat == CsvFormat.CUSTOM) {
+            item {
+                CustomConfigCard(
+                    config = uiState.customConfig,
+                    onChange = onConfigChange
+                )
+            }
+        }
+
         // File Selection
         item {
             Text(
@@ -388,6 +406,191 @@ private fun SelectFileContent(
 }
 
 @Composable
+private fun CustomConfigCard(
+    config: CsvImportConfig,
+    onChange: (CsvImportConfig) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Configuração das colunas",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                NumberField(
+                    value = config.dateColumn,
+                    label = "Data",
+                    minValue = 1,
+                    onValid = { onChange(config.copy(dateColumn = it)) },
+                    modifier = Modifier.weight(1f)
+                )
+                NumberField(
+                    value = config.descriptionColumn,
+                    label = "Descrição",
+                    minValue = 1,
+                    onValid = { onChange(config.copy(descriptionColumn = it)) },
+                    modifier = Modifier.weight(1f)
+                )
+                NumberField(
+                    value = config.amountColumn,
+                    label = "Valor",
+                    minValue = 1,
+                    onValid = { onChange(config.copy(amountColumn = it)) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Text(
+                text = "Número da coluna (1 = primeira coluna)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            NumberField(
+                value = config.skipRows,
+                label = "Pular linhas iniciais",
+                minValue = 0,
+                onValid = { onChange(config.copy(skipRows = it)) },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            ConfigDropdown(
+                label = "Delimitador",
+                selectedText = config.delimiter.displayName,
+                options = CsvDelimiter.entries.map { it.displayName },
+                onSelected = { index -> onChange(config.copy(delimiter = CsvDelimiter.entries[index])) }
+            )
+
+            ConfigDropdown(
+                label = "Formato da data",
+                selectedText = config.datePattern,
+                options = CsvImportConfig.DATE_PATTERNS,
+                onSelected = { index -> onChange(config.copy(datePattern = CsvImportConfig.DATE_PATTERNS[index])) }
+            )
+
+            ConfigDropdown(
+                label = "Formato decimal",
+                selectedText = config.decimalStyle.displayName,
+                options = DecimalStyle.entries.map { it.displayName },
+                onSelected = { index -> onChange(config.copy(decimalStyle = DecimalStyle.entries[index])) }
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Manter valores negativos",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "Estornos entram como valores negativos",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = config.negativeHandling == NegativeHandling.KEEP,
+                    onCheckedChange = { keep ->
+                        onChange(config.copy(negativeHandling = if (keep) NegativeHandling.KEEP else NegativeHandling.SKIP))
+                    }
+                )
+            }
+
+            Text(
+                text = "Linhas que não puderem ser interpretadas (ex: texto no fim do arquivo) serão ignoradas e listadas na pré-visualização.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun NumberField(
+    value: Int,
+    label: String,
+    minValue: Int,
+    onValid: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var text by remember(value) { mutableStateOf(value.toString()) }
+
+    OutlinedTextField(
+        value = text,
+        onValueChange = { input ->
+            val digits = input.filter { it.isDigit() }
+            text = digits
+            digits.toIntOrNull()?.let { number ->
+                if (number >= minValue) onValid(number)
+            }
+        },
+        label = { Text(label) },
+        singleLine = true,
+        isError = text.toIntOrNull()?.let { it < minValue } ?: true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ConfigDropdown(
+    label: String,
+    selectedText: String,
+    options: List<String>,
+    onSelected: (Int) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = selectedText,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEachIndexed { index, option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelected(index)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun PreviewContent(
     uiState: ImportCsvUiState,
     onImport: () -> Unit,
@@ -435,6 +638,73 @@ private fun PreviewContent(
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )
             }
+        }
+
+        // Skipped Lines Warning
+        if (uiState.skippedLines.isNotEmpty()) {
+            var showSkipped by remember { mutableStateOf(false) }
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                onClick = { showSkipped = !showSkipped },
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Text(
+                                text = "${uiState.skippedLines.size} linha(s) ignorada(s)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Icon(
+                            if (showSkipped) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (showSkipped) "Recolher" else "Expandir"
+                        )
+                    }
+                    if (showSkipped) {
+                        uiState.skippedLines.take(10).forEach { skipped ->
+                            Text(
+                                text = "Linha ${skipped.lineNumber}: ${skipped.reason} — ${skipped.content.take(60)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        if (uiState.skippedLines.size > 10) {
+                            Text(
+                                text = "… e mais ${uiState.skippedLines.size - 10} linha(s)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         // Items List Header with Select All/None

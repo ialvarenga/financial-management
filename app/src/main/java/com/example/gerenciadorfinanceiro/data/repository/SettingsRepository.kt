@@ -4,7 +4,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.example.gerenciadorfinanceiro.data.csv.CsvImportConfig
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -50,6 +52,46 @@ class SettingsRepository @Inject constructor(
             }
         }
     }
+
+    private val CSV_DATE_COL = intPreferencesKey("csv_custom_date_col")
+    private val CSV_DESC_COL = intPreferencesKey("csv_custom_desc_col")
+    private val CSV_AMOUNT_COL = intPreferencesKey("csv_custom_amount_col")
+    private val CSV_SKIP_ROWS = intPreferencesKey("csv_custom_skip_rows")
+    private val CSV_DELIMITER = stringPreferencesKey("csv_custom_delimiter")
+    private val CSV_DATE_PATTERN = stringPreferencesKey("csv_custom_date_pattern")
+    private val CSV_DECIMAL_STYLE = stringPreferencesKey("csv_custom_decimal_style")
+    private val CSV_NEGATIVE_HANDLING = stringPreferencesKey("csv_custom_negative_handling")
+
+    fun getCsvImportConfig(): Flow<CsvImportConfig> =
+        dataStore.data.map { preferences ->
+            val defaults = CsvImportConfig()
+            CsvImportConfig(
+                dateColumn = preferences[CSV_DATE_COL] ?: defaults.dateColumn,
+                descriptionColumn = preferences[CSV_DESC_COL] ?: defaults.descriptionColumn,
+                amountColumn = preferences[CSV_AMOUNT_COL] ?: defaults.amountColumn,
+                skipRows = preferences[CSV_SKIP_ROWS] ?: defaults.skipRows,
+                delimiter = preferences[CSV_DELIMITER].toEnum(defaults.delimiter),
+                datePattern = preferences[CSV_DATE_PATTERN] ?: defaults.datePattern,
+                decimalStyle = preferences[CSV_DECIMAL_STYLE].toEnum(defaults.decimalStyle),
+                negativeHandling = preferences[CSV_NEGATIVE_HANDLING].toEnum(defaults.negativeHandling)
+            )
+        }
+
+    suspend fun setCsvImportConfig(config: CsvImportConfig) {
+        dataStore.edit { preferences ->
+            preferences[CSV_DATE_COL] = config.dateColumn
+            preferences[CSV_DESC_COL] = config.descriptionColumn
+            preferences[CSV_AMOUNT_COL] = config.amountColumn
+            preferences[CSV_SKIP_ROWS] = config.skipRows
+            preferences[CSV_DELIMITER] = config.delimiter.name
+            preferences[CSV_DATE_PATTERN] = config.datePattern
+            preferences[CSV_DECIMAL_STYLE] = config.decimalStyle.name
+            preferences[CSV_NEGATIVE_HANDLING] = config.negativeHandling.name
+        }
+    }
+
+    private inline fun <reified T : Enum<T>> String?.toEnum(default: T): T =
+        this?.let { runCatching { enumValueOf<T>(it) }.getOrNull() } ?: default
 
     fun getLastSeenVersion(): Flow<String> =
         dataStore.data.map { preferences ->
