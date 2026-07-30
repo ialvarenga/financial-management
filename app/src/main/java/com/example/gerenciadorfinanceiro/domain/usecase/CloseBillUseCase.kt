@@ -82,7 +82,8 @@ class CloseBillUseCase @Inject constructor(
     }
 
     /**
-     * Closes overdue bills - bills that should have been closed in the past but are still OPEN.
+     * Closes overdue bills - bills whose closing date has been reached (including today)
+     * but are still OPEN. Bills close at 00h of their closing date.
      * This handles cases where bills were missed (app not running, errors, etc.)
      * @param creditCard The credit card to check
      * @param today The current date (defaults to today)
@@ -99,8 +100,9 @@ class CloseBillUseCase @Inject constructor(
                 .filter { it.creditCardId == creditCard.id }
 
             for (bill in openBills) {
-                // Check if the bill's closing date is in the past
-                if (bill.closingDate < todayMillis) {
+                // Close once the closing date is reached: the bill closes at 00h
+                // of the closing day, so closingDate == start-of-today qualifies
+                if (bill.closingDate <= todayMillis) {
                     // Close this overdue bill
                     billRepository.updateStatus(bill.id, BillStatus.CLOSED)
                     Log.i(TAG, "Closed overdue bill ${bill.id} for card ${creditCard.name} (${bill.month}/${bill.year})")

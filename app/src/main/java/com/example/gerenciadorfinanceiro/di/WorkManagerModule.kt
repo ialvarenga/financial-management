@@ -40,12 +40,12 @@ object WorkManagerModule {
         val nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay(now.zone)
         val initialDelayMinutes = Duration.between(now, nextMidnight).toMinutes()
 
-        // Create periodic work request that runs every 24 hours
+        // Create periodic work request that runs every 24 hours.
+        // No flex window: with flex, WorkManager runs the job at the END of each
+        // interval, which would push the first run ~23h past midnight.
         val billClosureWork = PeriodicWorkRequestBuilder<BillClosureWorker>(
             repeatInterval = 24,
-            repeatIntervalTimeUnit = TimeUnit.HOURS,
-            flexTimeInterval = 1,  // Can run within 1 hour window
-            flexTimeIntervalUnit = TimeUnit.HOURS
+            repeatIntervalTimeUnit = TimeUnit.HOURS
         )
             .setConstraints(constraints)
             .setInitialDelay(initialDelayMinutes, TimeUnit.MINUTES)

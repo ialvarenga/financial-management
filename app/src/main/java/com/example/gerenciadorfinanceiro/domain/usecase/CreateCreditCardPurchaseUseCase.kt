@@ -33,15 +33,20 @@ class CreateCreditCardPurchaseUseCase @Inject constructor(
             year = purchaseDate.year
         )
 
-        if (bill.status == BillStatus.CLOSED || bill.status == BillStatus.PAID) {
+        // The bill closes at 00h of its closing date, so purchases made on or after
+        // that moment belong to the next bill even if the closure worker hasn't
+        // flipped the status yet
+        val billNotYetClosed = bill.status == BillStatus.OPEN && parsed.timestamp >= bill.closingDate
+        if (bill.status == BillStatus.CLOSED || bill.status == BillStatus.PAID || billNotYetClosed) {
             val nextMonth = LocalDate.of(bill.year, bill.month, 1).plusMonths(1)
             bill = getOrCreateBillUseCase(
                 creditCardId = creditCard.id,
                 month = nextMonth.monthValue,
                 year = nextMonth.year
             )
-            Log.i(TAG, "Bill for ${purchaseDate.monthValue}/${purchaseDate.year} is ${bill.status}, " +
-                    "adding item to next month's bill (${nextMonth.monthValue}/${nextMonth.year})")
+            Log.i(TAG, "Bill for ${purchaseDate.monthValue}/${purchaseDate.year} is ${bill.status} " +
+                    "or past its closing date, adding item to next month's bill " +
+                    "(${nextMonth.monthValue}/${nextMonth.year})")
         }
 
         val item = CreditCardItem(
