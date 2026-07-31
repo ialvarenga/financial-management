@@ -1,9 +1,12 @@
 package com.example.gerenciadorfinanceiro.data.backup
 
+import com.example.gerenciadorfinanceiro.BuildConfig
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.local.entity.Account
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCard
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardBill
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
+import com.example.gerenciadorfinanceiro.data.local.entity.ProcessedNotification
 import com.example.gerenciadorfinanceiro.data.local.entity.Recurrence
 import com.example.gerenciadorfinanceiro.data.local.entity.Transaction
 import com.example.gerenciadorfinanceiro.data.local.entity.Transfer
@@ -11,9 +14,21 @@ import com.example.gerenciadorfinanceiro.data.local.entity.Transfer
 data class BackupData(
     val version: Int = 1,
     val appVersion: String,
+    // 0 in backups created before this field existed (Gson leaves missing fields as 0)
+    val schemaVersion: Int = 0,
     val exportDate: Long,
     val data: FinancialData
-)
+) {
+    companion object {
+        fun create(data: FinancialData): BackupData = BackupData(
+            version = 1,
+            appVersion = BuildConfig.VERSION_NAME,
+            schemaVersion = AppDatabase.DATABASE_VERSION,
+            exportDate = System.currentTimeMillis(),
+            data = data
+        )
+    }
+}
 
 data class FinancialData(
     val accounts: List<Account>,
@@ -22,7 +37,9 @@ data class FinancialData(
     val recurrences: List<Recurrence>,
     val transfers: List<Transfer>,
     val creditCardBills: List<CreditCardBill>,
-    val creditCardItems: List<CreditCardItem>
+    val creditCardItems: List<CreditCardItem>,
+    // Nullable: absent in backups created before this field existed
+    val processedNotifications: List<ProcessedNotification>? = null
 )
 
 sealed class ExportResult {

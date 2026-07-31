@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.example.gerenciadorfinanceiro.data.csv.CsvImportConfig
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
@@ -92,6 +93,83 @@ class SettingsRepository @Inject constructor(
 
     private inline fun <reified T : Enum<T>> String?.toEnum(default: T): T =
         this?.let { runCatching { enumValueOf<T>(it) }.getOrNull() } ?: default
+
+    private val BUDGET_ENABLED = booleanPreferencesKey("cc_budget_enabled")
+    private val BUDGET_AMOUNT = longPreferencesKey("cc_budget_amount_cents")
+    private val BUDGET_NOTIFIED_TIER = intPreferencesKey("cc_budget_notified_tier")
+    private val BUDGET_NOTIFIED_MONTH = stringPreferencesKey("cc_budget_notified_month")
+
+    fun isBudgetEnabled(): Flow<Boolean> =
+        dataStore.data.map { preferences ->
+            preferences[BUDGET_ENABLED] ?: false
+        }
+
+    suspend fun setBudgetEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[BUDGET_ENABLED] = enabled
+        }
+    }
+
+    fun getBudgetAmount(): Flow<Long> =
+        dataStore.data.map { preferences ->
+            preferences[BUDGET_AMOUNT] ?: 0L
+        }
+
+    suspend fun setBudgetAmount(cents: Long) {
+        dataStore.edit { preferences ->
+            preferences[BUDGET_AMOUNT] = cents
+        }
+    }
+
+    /** Bill cycle key ("2026-07") and highest tier (0/80/90/100) already notified for it. */
+    fun getBudgetNotifiedState(): Flow<Pair<String, Int>> =
+        dataStore.data.map { preferences ->
+            (preferences[BUDGET_NOTIFIED_MONTH] ?: "") to (preferences[BUDGET_NOTIFIED_TIER] ?: 0)
+        }
+
+    suspend fun setBudgetNotifiedState(month: String, tier: Int) {
+        dataStore.edit { preferences ->
+            preferences[BUDGET_NOTIFIED_MONTH] = month
+            preferences[BUDGET_NOTIFIED_TIER] = tier
+        }
+    }
+
+    private val AUTO_BACKUP_ENABLED = booleanPreferencesKey("auto_backup_enabled")
+    private val BACKUP_FOLDER_URI = stringPreferencesKey("backup_folder_uri")
+    private val LAST_AUTO_BACKUP_AT = longPreferencesKey("last_auto_backup_at")
+
+    fun isAutoBackupEnabled(): Flow<Boolean> =
+        dataStore.data.map { preferences ->
+            preferences[AUTO_BACKUP_ENABLED] ?: true
+        }
+
+    suspend fun setAutoBackupEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[AUTO_BACKUP_ENABLED] = enabled
+        }
+    }
+
+    fun getBackupFolderUri(): Flow<String?> =
+        dataStore.data.map { preferences ->
+            preferences[BACKUP_FOLDER_URI]
+        }
+
+    suspend fun setBackupFolderUri(uri: String) {
+        dataStore.edit { preferences ->
+            preferences[BACKUP_FOLDER_URI] = uri
+        }
+    }
+
+    fun getLastAutoBackupAt(): Flow<Long?> =
+        dataStore.data.map { preferences ->
+            preferences[LAST_AUTO_BACKUP_AT]
+        }
+
+    suspend fun setLastAutoBackupAt(timestamp: Long) {
+        dataStore.edit { preferences ->
+            preferences[LAST_AUTO_BACKUP_AT] = timestamp
+        }
+    }
 
     fun getLastSeenVersion(): Flow<String> =
         dataStore.data.map { preferences ->

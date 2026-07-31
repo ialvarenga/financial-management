@@ -1,5 +1,6 @@
 package com.example.gerenciadorfinanceiro.ui.screens.mais
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,7 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.data.backup.BackupPreviewInfo
 import com.example.gerenciadorfinanceiro.data.backup.ImportEntity
@@ -29,6 +32,11 @@ private fun generateBackupFileName(): String {
     return "backup_${dateFormat.format(Date())}.json"
 }
 
+private fun formatBackupTimestamp(timestamp: Long): String {
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+    return dateFormat.format(Date(timestamp))
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeveloperToolsScreen(
@@ -36,7 +44,10 @@ fun DeveloperToolsScreen(
     viewModel: BackupSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val autoBackupState by viewModel.autoBackupState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var showResetDialog by remember { mutableStateOf(false) }
 
@@ -50,6 +61,18 @@ fun DeveloperToolsScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let { viewModel.loadBackupForPreview(it) }
+    }
+
+    val backupFolderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            viewModel.setBackupFolder(it.toString())
+        }
     }
 
     LaunchedEffect(uiState.exportSuccess) {
@@ -188,6 +211,46 @@ fun DeveloperToolsScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
+                text = "Backup Automático",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+            )
+
+            SwitchOption(
+                title = "Backup Diário Automático",
+                description = "Salva todos os dados em JSON uma vez por dia (mantém os últimos 7)",
+                icon = Icons.Default.Backup,
+                checked = autoBackupState.enabled,
+                onCheckedChange = { viewModel.setAutoBackupEnabled(it) }
+            )
+
+            ToolOption(
+                title = "Pasta de Backup",
+                description = autoBackupState.folderUri
+                    ?.let { "Pasta: ${Uri.parse(it).lastPathSegment ?: it}" }
+                    ?: "Padrão: armazenamento interno do aplicativo",
+                icon = Icons.Default.Folder,
+                onClick = { backupFolderLauncher.launch(null) }
+            )
+
+            ToolOption(
+                title = "Backup Agora",
+                description = autoBackupState.lastBackupAt
+                    ?.let { "Último backup automático: ${formatBackupTimestamp(it)}" }
+                    ?: "Nenhum backup automático realizado ainda",
+                icon = Icons.Default.Save,
+                onClick = {
+                    viewModel.backupNow()
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Backup em execução...")
+                    }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
                 text = "Zona de Perigo",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.error,
@@ -299,7 +362,9 @@ private fun ImportEntitySelectionDialog(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                 Text(
-                    text = "⚠ Todos os dados existentes serão substituídos pelos selecionados. Esta ação não pode ser desfeita.",
+                    text = "⚠ TODOS os dados atuais serão apagados e substituídos apenas pelos itens " +
+                        "selecionados do backup — itens desmarcados NÃO serão preservados. " +
+                        "Um backup de segurança dos dados atuais é criado automaticamente antes da restauração.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -350,6 +415,51 @@ private fun EntityCheckboxRow(
                     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             modifier = Modifier.weight(1f)
         )
+    }
+}
+
+@Composable
+private fun SwitchOption(
+    title: String,
+    description: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange
+            )
+        }
     }
 }
 

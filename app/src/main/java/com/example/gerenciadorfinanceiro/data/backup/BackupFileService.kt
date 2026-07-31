@@ -46,7 +46,12 @@ class BackupFileService @Inject constructor(
                     val backupData = gson.fromJson(reader, BackupData::class.java)
                         ?: return@withContext Result.failure(Exception("Arquivo de backup vazio"))
 
-                    Result.success(backupData)
+                    val sanitized = sanitize(backupData)
+                        ?: return@withContext Result.failure(
+                            Exception("Arquivo de backup inválido: estrutura de dados ausente")
+                        )
+
+                    Result.success(sanitized)
                 }
             } ?: Result.failure(IOException("Não foi possível abrir o arquivo para leitura"))
         } catch (e: JsonSyntaxException) {
@@ -61,5 +66,25 @@ class BackupFileService @Inject constructor(
     fun generateFileName(): String {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault())
         return "backup_${dateFormat.format(Date())}.json"
+    }
+
+    // Gson bypasses Kotlin constructors, so a hand-edited or truncated JSON can leave
+    // non-null fields as null. Replace null containers with empty ones and reject files
+    // with no data object at all, instead of crashing later.
+    @Suppress("SENSELESS_COMPARISON", "USELESS_ELVIS")
+    private fun sanitize(backupData: BackupData): BackupData? {
+        val data = backupData.data ?: return null
+        return backupData.copy(
+            data = FinancialData(
+                accounts = (data.accounts ?: emptyList()).filterNotNull(),
+                creditCards = (data.creditCards ?: emptyList()).filterNotNull(),
+                transactions = (data.transactions ?: emptyList()).filterNotNull(),
+                recurrences = (data.recurrences ?: emptyList()).filterNotNull(),
+                transfers = (data.transfers ?: emptyList()).filterNotNull(),
+                creditCardBills = (data.creditCardBills ?: emptyList()).filterNotNull(),
+                creditCardItems = (data.creditCardItems ?: emptyList()).filterNotNull(),
+                processedNotifications = data.processedNotifications?.filterNotNull()
+            )
+        )
     }
 }

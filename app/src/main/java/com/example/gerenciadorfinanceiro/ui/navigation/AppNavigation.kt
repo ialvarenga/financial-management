@@ -22,6 +22,7 @@ import com.example.gerenciadorfinanceiro.ui.screens.transactions.AddTransferScre
 import com.example.gerenciadorfinanceiro.ui.screens.settings.NotificationSettingsScreen
 import com.example.gerenciadorfinanceiro.ui.screens.settings.NotificationPermissionScreen
 import com.example.gerenciadorfinanceiro.ui.screens.settings.BackupSettingsScreen
+import com.example.gerenciadorfinanceiro.ui.screens.settings.BudgetSettingsScreen
 import com.example.gerenciadorfinanceiro.ui.screens.mais.MaisScreen
 import com.example.gerenciadorfinanceiro.ui.screens.mais.DeveloperToolsScreen
 import com.example.gerenciadorfinanceiro.ui.screens.analytics.AnalyticsScreen
@@ -58,6 +59,7 @@ sealed class Screen(val route: String) {
     }
     object NotificationSettings : Screen("notification_settings")
     object NotificationPermission : Screen("notification_permission")
+    object BudgetSettings : Screen("budget_settings")
     object Settings : Screen("settings")
     object Mais : Screen("mais")
     object Analytics : Screen("analytics")
@@ -256,11 +258,20 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
 
+        composable(Screen.BudgetSettings.route) {
+            BudgetSettingsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
         composable(Screen.Settings.route) {
             BackupSettingsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToNotificationSettings = {
                     navController.navigate(Screen.NotificationSettings.route)
+                },
+                onNavigateToBudgetSettings = {
+                    navController.navigate(Screen.BudgetSettings.route)
                 }
             )
         }

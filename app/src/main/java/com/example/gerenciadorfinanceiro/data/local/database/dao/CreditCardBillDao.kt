@@ -44,6 +44,22 @@ interface CreditCardBillDao {
     @Query("SELECT COALESCE(SUM(totalAmount), 0) FROM credit_card_bills WHERE status IN ('OPEN', 'CLOSED')")
     fun getTotalUnpaidAmount(): Flow<Long>
 
+    @Query("""
+        SELECT MIN(bills.year * 100 + bills.month)
+        FROM credit_card_bills bills
+        INNER JOIN credit_cards cards ON bills.creditCardId = cards.id
+        WHERE bills.status = 'OPEN' AND cards.isActive = 1
+    """)
+    fun getOldestOpenBillPeriodFlow(): Flow<Int?>
+
+    @Query("""
+        SELECT MIN(bills.year * 100 + bills.month)
+        FROM credit_card_bills bills
+        INNER JOIN credit_cards cards ON bills.creditCardId = cards.id
+        WHERE bills.status = 'OPEN' AND cards.isActive = 1
+    """)
+    suspend fun getOldestOpenBillPeriod(): Int?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(bill: CreditCardBill): Long
 

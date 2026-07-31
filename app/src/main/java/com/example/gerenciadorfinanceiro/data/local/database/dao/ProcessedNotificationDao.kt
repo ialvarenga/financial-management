@@ -13,6 +13,9 @@ interface ProcessedNotificationDao {
     @Query("SELECT EXISTS(SELECT 1 FROM processed_notifications WHERE notificationKey = :key LIMIT 1)")
     suspend fun existsByKey(key: String): Boolean
 
+    @Query("SELECT * FROM processed_notifications")
+    suspend fun getAllOnce(): List<ProcessedNotification>
+
     @Query("DELETE FROM processed_notifications WHERE processedAt < :timestamp")
     suspend fun deleteOlderThan(timestamp: Long): Int
 }

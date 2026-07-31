@@ -3,6 +3,10 @@ package com.example.gerenciadorfinanceiro.ui.screens.settings
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.example.gerenciadorfinanceiro.data.backup.BackupPreviewInfo
 import com.example.gerenciadorfinanceiro.data.backup.ExportResult
 import com.example.gerenciadorfinanceiro.data.backup.FinancialData
@@ -10,12 +14,17 @@ import com.example.gerenciadorfinanceiro.data.backup.ImportEntity
 import com.example.gerenciadorfinanceiro.data.backup.ImportEntityFilter
 import com.example.gerenciadorfinanceiro.data.backup.ImportResult
 import com.example.gerenciadorfinanceiro.data.repository.BackupRepository
+import com.example.gerenciadorfinanceiro.data.repository.SettingsRepository
 import com.example.gerenciadorfinanceiro.domain.usecase.ExportBackupUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.ImportBackupUseCase
+import com.example.gerenciadorfinanceiro.worker.AutoBackupWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -43,15 +52,57 @@ data class ImportSuccessInfo(
     val creditCardItemCount: Int
 )
 
+data class AutoBackupUiState(
+    val enabled: Boolean = true,
+    val folderUri: String? = null,
+    val lastBackupAt: Long? = null
+)
+
 @HiltViewModel
 class BackupSettingsViewModel @Inject constructor(
     private val exportBackupUseCase: ExportBackupUseCase,
     private val importBackupUseCase: ImportBackupUseCase,
-    private val backupRepository: BackupRepository
+    private val backupRepository: BackupRepository,
+    private val settingsRepository: SettingsRepository,
+    private val workManager: WorkManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BackupSettingsUiState())
     val uiState: StateFlow<BackupSettingsUiState> = _uiState.asStateFlow()
+
+    val autoBackupState: StateFlow<AutoBackupUiState> = combine(
+        settingsRepository.isAutoBackupEnabled(),
+        settingsRepository.getBackupFolderUri(),
+        settingsRepository.getLastAutoBackupAt()
+    ) { enabled, folderUri, lastBackupAt ->
+        AutoBackupUiState(enabled = enabled, folderUri = folderUri, lastBackupAt = lastBackupAt)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = AutoBackupUiState()
+    )
+
+    fun setAutoBackupEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAutoBackupEnabled(enabled)
+        }
+    }
+
+    fun setBackupFolder(uri: String) {
+        viewModelScope.launch {
+            settingsRepository.setBackupFolderUri(uri)
+        }
+    }
+
+    fun backupNow() {
+        workManager.enqueueUniqueWork(
+            AutoBackupWorker.ONE_TIME_WORK_NAME,
+            ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<AutoBackupWorker>()
+                .setInputData(workDataOf(AutoBackupWorker.KEY_FORCE to true))
+                .build()
+        )
+    }
 
     private var pendingBackupData: FinancialData? = null
 

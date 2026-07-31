@@ -31,11 +31,15 @@ import com.example.gerenciadorfinanceiro.data.local.entity.Transfer
         Transfer::class,
         ProcessedNotification::class
     ],
-    version = 13,
-    exportSchema = false
+    version = AppDatabase.DATABASE_VERSION,
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
+    companion object {
+        const val DATABASE_VERSION = 13
+    }
+
     abstract fun accountDao(): AccountDao
     abstract fun transactionDao(): TransactionDao
     abstract fun creditCardDao(): CreditCardDao

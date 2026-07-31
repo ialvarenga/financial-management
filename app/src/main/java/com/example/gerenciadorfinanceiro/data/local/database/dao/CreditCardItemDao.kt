@@ -88,6 +88,34 @@ interface CreditCardItemDao {
     fun getCurrentMonthTotalsPerCard(month: Int, year: Int): Flow<List<CardBillTotal>>
 
     @Query("""
+        SELECT COALESCE(SUM(items.amount), 0)
+        FROM credit_card_items items
+        INNER JOIN credit_card_bills bills ON items.creditCardBillId = bills.id
+        INNER JOIN credit_cards cards ON bills.creditCardId = cards.id
+        WHERE bills.status = 'OPEN' AND cards.isActive = 1
+        AND bills.year * 100 + bills.month = (
+            SELECT MIN(b2.year * 100 + b2.month)
+            FROM credit_card_bills b2
+            WHERE b2.creditCardId = bills.creditCardId AND b2.status = 'OPEN'
+        )
+    """)
+    fun getOpenBillsTotalFlow(): Flow<Long>
+
+    @Query("""
+        SELECT COALESCE(SUM(items.amount), 0)
+        FROM credit_card_items items
+        INNER JOIN credit_card_bills bills ON items.creditCardBillId = bills.id
+        INNER JOIN credit_cards cards ON bills.creditCardId = cards.id
+        WHERE bills.status = 'OPEN' AND cards.isActive = 1
+        AND bills.year * 100 + bills.month = (
+            SELECT MIN(b2.year * 100 + b2.month)
+            FROM credit_card_bills b2
+            WHERE b2.creditCardId = bills.creditCardId AND b2.status = 'OPEN'
+        )
+    """)
+    suspend fun getOpenBillsTotal(): Long
+
+    @Query("""
         SELECT items.category, SUM(items.amount) as total, COUNT(*) as count
         FROM credit_card_items items
         INNER JOIN credit_card_bills bills ON items.creditCardBillId = bills.id

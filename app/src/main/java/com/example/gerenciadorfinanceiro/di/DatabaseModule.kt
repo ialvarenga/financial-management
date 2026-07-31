@@ -55,7 +55,8 @@ object DatabaseModule {
             try {
                 db.execSQL("ALTER TABLE transactions ADD COLUMN isSkippedRecurrence INTEGER NOT NULL DEFAULT 0")
             } catch (e: Exception) {
-                // Column might already exist if 11->12 ran with new code
+                // Column already exists if 11->12 ran with new code; anything else is a real failure
+                if (e.message?.contains("duplicate column", ignoreCase = true) != true) throw e
             }
             // Drop the old skipped_recurrences table if it exists
             db.execSQL("DROP TABLE IF EXISTS skipped_recurrences")
@@ -71,7 +72,6 @@ object DatabaseModule {
             "financial_app.db"
         )
         .addMigrations(MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
-        .fallbackToDestructiveMigration()  // For development - will use proper migrations in production
         .build()
     }
 

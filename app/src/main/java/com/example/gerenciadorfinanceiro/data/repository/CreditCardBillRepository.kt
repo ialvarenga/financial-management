@@ -40,6 +40,10 @@ class CreditCardBillRepository @Inject constructor(
 
     fun getTotalUnpaidAmount(): Flow<Long> = billDao.getTotalUnpaidAmount()
 
+    fun getOldestOpenBillPeriodFlow(): Flow<Int?> = billDao.getOldestOpenBillPeriodFlow()
+
+    suspend fun getOldestOpenBillPeriod(): Int? = billDao.getOldestOpenBillPeriod()
+
     suspend fun insert(bill: CreditCardBill): Long = billDao.insert(bill)
 
     suspend fun update(bill: CreditCardBill) = billDao.update(bill)

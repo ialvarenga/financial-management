@@ -60,6 +60,12 @@ class CreditCardItemRepository @Inject constructor(
     fun getCurrentMonthTotalsPerCard(month: Int, year: Int): Flow<List<CardBillTotal>> =
         itemDao.getCurrentMonthTotalsPerCard(month, year)
 
+    fun getOpenBillsTotalFlow(): Flow<Long> =
+        itemDao.getOpenBillsTotalFlow()
+
+    suspend fun getOpenBillsTotal(): Long =
+        itemDao.getOpenBillsTotal()
+
     fun getCategoryTotalsForMonth(month: Int, year: Int): Flow<List<CreditCardCategoryTotal>> =
         itemDao.getCategoryTotalsForMonth(month, year)
 

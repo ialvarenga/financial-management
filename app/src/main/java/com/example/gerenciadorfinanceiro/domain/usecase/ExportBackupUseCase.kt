@@ -13,25 +13,16 @@ class ExportBackupUseCase @Inject constructor(
 ) {
     suspend fun execute(uri: Uri): ExportResult {
         return try {
-            val financialData = backupRepository.exportAllData()
+            val backupData = BackupData.create(backupRepository.exportAllData())
 
-            val backupData = BackupData(
-                version = 1,
-                appVersion = "1.0",
-                exportDate = System.currentTimeMillis(),
-                data = financialData
+            backupFileService.exportToFile(uri, backupData).fold(
+                onSuccess = {
+                    ExportResult.Success(fileName = uri.lastPathSegment ?: "backup.json")
+                },
+                onFailure = { exception ->
+                    ExportResult.Error(exception.message ?: "Erro desconhecido ao exportar")
+                }
             )
-
-            backupFileService.exportToFile(uri, backupData)
-                .onSuccess {
-                    val fileName = uri.lastPathSegment ?: "backup.json"
-                    return ExportResult.Success(fileName = fileName)
-                }
-                .onFailure { exception ->
-                    return ExportResult.Error(exception.message ?: "Erro desconhecido ao exportar")
-                }
-
-            ExportResult.Error("Erro inesperado ao exportar")
         } catch (e: Exception) {
             ExportResult.Error(e.message ?: "Erro inesperado ao exportar dados")
         }

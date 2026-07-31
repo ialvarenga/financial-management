@@ -47,6 +47,10 @@ android {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     // Core
     implementation(libs.androidx.core.ktx)
@@ -86,6 +90,9 @@ dependencies {
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // SAF tree access for auto-backup folder
+    implementation("androidx.documentfile:documentfile:1.0.1")
 
     // Gson for JSON serialization
     implementation("com.google.code.gson:gson:2.10.1")

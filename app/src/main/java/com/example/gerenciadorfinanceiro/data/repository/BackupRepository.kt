@@ -1,6 +1,8 @@
 package com.example.gerenciadorfinanceiro.data.repository
 
 import androidx.room.withTransaction
+import com.example.gerenciadorfinanceiro.data.backup.BackupData
+import com.example.gerenciadorfinanceiro.data.backup.BackupStorage
 import com.example.gerenciadorfinanceiro.data.backup.FinancialData
 import com.example.gerenciadorfinanceiro.data.backup.ImportEntityFilter
 import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
@@ -8,6 +10,7 @@ import com.example.gerenciadorfinanceiro.data.local.database.dao.AccountDao
 import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardBillDao
 import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardDao
 import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardItemDao
+import com.example.gerenciadorfinanceiro.data.local.database.dao.ProcessedNotificationDao
 import com.example.gerenciadorfinanceiro.data.local.database.dao.RecurrenceDao
 import com.example.gerenciadorfinanceiro.data.local.database.dao.TransactionDao
 import com.example.gerenciadorfinanceiro.data.local.database.dao.TransferDao
@@ -26,24 +29,32 @@ class BackupRepository @Inject constructor(
     private val transferDao: TransferDao,
     private val creditCardBillDao: CreditCardBillDao,
     private val creditCardItemDao: CreditCardItemDao,
-    private val database: AppDatabase
+    private val processedNotificationDao: ProcessedNotificationDao,
+    private val database: AppDatabase,
+    private val backupStorage: BackupStorage
 ) {
     suspend fun exportAllData(): FinancialData = withContext(Dispatchers.IO) {
-        FinancialData(
-            accounts = accountDao.getAll().first(),
-            creditCards = creditCardDao.getAll().first(),
-            transactions = transactionDao.getAll().first(),
-            recurrences = recurrenceDao.getAll().first(),
-            transfers = transferDao.getAll().first(),
-            creditCardBills = creditCardBillDao.getAll().first(),
-            creditCardItems = creditCardItemDao.getAll().first()
-        )
+        // Single transaction so a concurrent write can't produce an inconsistent snapshot
+        database.withTransaction {
+            FinancialData(
+                accounts = accountDao.getAll().first(),
+                creditCards = creditCardDao.getAll().first(),
+                transactions = transactionDao.getAll().first(),
+                recurrences = recurrenceDao.getAll().first(),
+                transfers = transferDao.getAll().first(),
+                creditCardBills = creditCardBillDao.getAll().first(),
+                creditCardItems = creditCardItemDao.getAll().first(),
+                processedNotifications = processedNotificationDao.getAllOnce()
+            )
+        }
     }
 
     suspend fun importAllData(
         data: FinancialData,
         filter: ImportEntityFilter = ImportEntityFilter()
     ): Unit = withContext(Dispatchers.IO) {
+        writeSafetyBackup()
+
         database.withTransaction {
             database.clearAllTables()
 
@@ -128,10 +139,43 @@ class BackupRepository @Inject constructor(
                     creditCardItemDao.insert(remappedItem)
                 }
             }
+
+            // Restore notification dedup history so already-captured bank notifications
+            // aren't re-processed into duplicate transactions. The created* ids point at
+            // pre-restore rows, so they are dropped.
+            data.processedNotifications?.forEach { notification ->
+                processedNotificationDao.insert(
+                    notification.copy(
+                        id = 0,
+                        createdTransactionId = null,
+                        createdCreditCardItemId = null
+                    )
+                )
+            }
         }
     }
 
     suspend fun resetAllData(): Unit = withContext(Dispatchers.IO) {
+        writeSafetyBackup()
         database.clearAllTables()
+    }
+
+    // Snapshots the current data to a pre_restore file before any destructive operation;
+    // aborts the operation if the snapshot can't be written.
+    private suspend fun writeSafetyBackup() {
+        val current = exportAllData()
+        val isEmpty = current.accounts.isEmpty() && current.transactions.isEmpty() &&
+            current.creditCards.isEmpty() && current.creditCardItems.isEmpty()
+        if (isEmpty) return
+
+        backupStorage.writeBackup(
+            backupData = BackupData.create(current),
+            prefix = BackupStorage.PRE_RESTORE_PREFIX,
+            keep = BackupStorage.PRE_RESTORE_KEEP
+        ).getOrElse { e ->
+            throw IllegalStateException(
+                "Falha ao criar backup de segurança antes da operação: ${e.message}", e
+            )
+        }
     }
 }

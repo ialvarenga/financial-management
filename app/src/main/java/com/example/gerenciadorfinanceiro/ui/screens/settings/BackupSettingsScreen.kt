@@ -17,6 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun BackupSettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToNotificationSettings: () -> Unit = {},
+    onNavigateToBudgetSettings: () -> Unit = {},
     viewModel: BackupSettingsViewModel = hiltViewModel()
 ) {
     Scaffold(
@@ -40,6 +41,48 @@ fun BackupSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             NotificationParserCard(onClick = onNavigateToNotificationSettings)
+            BudgetCard(onClick = onNavigateToBudgetSettings)
+        }
+    }
+}
+
+@Composable
+private fun BudgetCard(
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Savings,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Orçamento do Cartão",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "Limite mensal de gastos com alertas nada gentis",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
