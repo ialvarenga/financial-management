@@ -6,11 +6,13 @@ import android.service.notification.NotificationListenerService
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.gerenciadorfinanceiro.di.WorkManagerModule
 import com.example.gerenciadorfinanceiro.notification.BudgetAlertMonitor
 import com.example.gerenciadorfinanceiro.service.FinancialNotificationListener
 import com.example.gerenciadorfinanceiro.util.isNotificationAccessGranted
+import com.example.gerenciadorfinanceiro.worker.BillClosureWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -31,6 +33,13 @@ class FinancialApp : Application(), Configuration.Provider {
 
         // Schedule daily bill closure work
         WorkManagerModule.scheduleBillClosureWork(workManager)
+
+        // The periodic run above can be missed entirely (Doze deferral, battery
+        // optimization, or the app not running at midnight) with nothing to catch
+        // it up until the next scheduled run. Kick off an immediate one-off run on
+        // every app start so overdue/today's closures aren't left for the user to
+        // close manually.
+        workManager.enqueue(OneTimeWorkRequestBuilder<BillClosureWorker>().build())
 
         // Schedule daily budget morning nag
         WorkManagerModule.scheduleBudgetMorningWork(workManager)
