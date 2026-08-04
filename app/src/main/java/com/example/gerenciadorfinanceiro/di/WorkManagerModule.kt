@@ -72,10 +72,6 @@ object WorkManagerModule {
      * This should be called once during app initialization.
      */
     fun scheduleBudgetMorningWork(workManager: WorkManager) {
-        val constraints = Constraints.Builder()
-            .setRequiresBatteryNotLow(true)
-            .build()
-
         // Calculate initial delay to the next 08:00
         val now = java.time.ZonedDateTime.now()
         val todayAtEight = now.toLocalDate().atTime(8, 0).atZone(now.zone)
@@ -84,11 +80,12 @@ object WorkManagerModule {
 
         // No flex window: with flex, WorkManager runs the job at the END of each
         // interval, which would push the first run far past 08:00.
+        // No battery constraint either: posting a notification is trivial work, and
+        // constraint deferrals shift the periodic anchor away from the morning.
         val budgetMorningWork = PeriodicWorkRequestBuilder<BudgetMorningWorker>(
             repeatInterval = 24,
             repeatIntervalTimeUnit = TimeUnit.HOURS
         )
-            .setConstraints(constraints)
             .setInitialDelay(initialDelayMinutes, TimeUnit.MINUTES)
             .addTag(BudgetMorningWorker.TAG)
             .build()

@@ -121,6 +121,20 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    private val BUDGET_LAST_NAG_DATE = stringPreferencesKey("cc_budget_last_nag_date")
+
+    /** ISO local date ("2026-07-30") of the last daily budget nag, or "" if never posted. */
+    fun getBudgetLastNagDate(): Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[BUDGET_LAST_NAG_DATE] ?: ""
+        }
+
+    suspend fun setBudgetLastNagDate(date: String) {
+        dataStore.edit { preferences ->
+            preferences[BUDGET_LAST_NAG_DATE] = date
+        }
+    }
+
     /** Bill cycle key ("2026-07") and highest tier (0/80/90/100) already notified for it. */
     fun getBudgetNotifiedState(): Flow<Pair<String, Int>> =
         dataStore.data.map { preferences ->
