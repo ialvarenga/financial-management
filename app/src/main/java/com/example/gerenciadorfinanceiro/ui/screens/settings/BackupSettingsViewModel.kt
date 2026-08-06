@@ -175,6 +175,9 @@ class BackupSettingsViewModel @Inject constructor(
         }
     }
 
+    // Accounts/CreditCards/CreditCardBills cascade-delete their dependents at the DB level,
+    // so restoring one of them always requires restoring what cascades from it too - keeps
+    // this in sync with BackupRepository.validatePartialFilterConsistency.
     fun toggleEntityFilter(entity: ImportEntity, checked: Boolean) {
         val current = _uiState.value.entityFilter
         val updated = when (entity) {
@@ -182,27 +185,40 @@ class BackupSettingsViewModel @Inject constructor(
                 if (!checked) {
                     current.copy(accounts = false, transactions = false, transfers = false)
                 } else {
-                    current.copy(accounts = true)
+                    current.copy(accounts = true, transactions = true, transfers = true, recurrences = true)
                 }
             }
             ImportEntity.CREDIT_CARDS -> {
                 if (!checked) {
                     current.copy(creditCards = false, creditCardBills = false, creditCardItems = false)
                 } else {
-                    current.copy(creditCards = true)
+                    current.copy(creditCards = true, creditCardBills = true, creditCardItems = true, recurrences = true)
                 }
             }
-            ImportEntity.TRANSACTIONS -> current.copy(transactions = checked)
-            ImportEntity.RECURRENCES -> current.copy(recurrences = checked)
-            ImportEntity.TRANSFERS -> current.copy(transfers = checked)
+            ImportEntity.TRANSACTIONS -> {
+                if (!checked && current.accounts) current else current.copy(transactions = checked)
+            }
+            ImportEntity.RECURRENCES -> {
+                if (!checked && (current.accounts || current.creditCards)) {
+                    // Can't drop recurrences while a parent that cascades into it is selected
+                    current
+                } else {
+                    current.copy(recurrences = checked)
+                }
+            }
+            ImportEntity.TRANSFERS -> {
+                if (!checked && current.accounts) current else current.copy(transfers = checked)
+            }
             ImportEntity.CREDIT_CARD_BILLS -> {
                 if (!checked) {
-                    current.copy(creditCardBills = false, creditCardItems = false)
+                    if (current.creditCards) current else current.copy(creditCardBills = false, creditCardItems = false)
                 } else {
-                    current.copy(creditCardBills = true)
+                    current.copy(creditCardBills = true, creditCardItems = true)
                 }
             }
-            ImportEntity.CREDIT_CARD_ITEMS -> current.copy(creditCardItems = checked)
+            ImportEntity.CREDIT_CARD_ITEMS -> {
+                if (!checked && current.creditCardBills) current else current.copy(creditCardItems = checked)
+            }
         }
         _uiState.update { it.copy(entityFilter = updated) }
     }

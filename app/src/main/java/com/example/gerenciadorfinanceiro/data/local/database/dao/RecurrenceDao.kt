@@ -43,4 +43,7 @@ interface RecurrenceDao {
 
     @Query("UPDATE recurrences SET isActive = 1 WHERE id = :id")
     suspend fun activate(id: Long)
+
+    @Query("DELETE FROM recurrences")
+    suspend fun deleteAll()
 }

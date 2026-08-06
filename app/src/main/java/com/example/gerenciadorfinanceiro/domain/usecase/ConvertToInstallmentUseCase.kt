@@ -1,8 +1,11 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import androidx.room.withTransaction
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepository
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardItemRepository
+import com.example.gerenciadorfinanceiro.domain.model.BillStatus
 import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
@@ -18,7 +21,8 @@ import javax.inject.Inject
 class ConvertToInstallmentUseCase @Inject constructor(
     private val billRepository: CreditCardBillRepository,
     private val itemRepository: CreditCardItemRepository,
-    private val getOrCreateBillUseCase: GetOrCreateBillUseCase
+    private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
+    private val database: AppDatabase
 ) {
     /**
      * Converts a single-purchase item into an installment purchase.
@@ -42,69 +46,83 @@ class ConvertToInstallmentUseCase @Inject constructor(
             "Total installments must be between 2 and 24"
         }
 
-        val item = itemRepository.getById(itemId)
-            ?: throw IllegalStateException("Item not found")
+        // Runs as one DB transaction so a later installment landing on a non-OPEN bill
+        // rejects the whole conversion instead of leaving the original item half-converted.
+        return database.withTransaction {
+            val item = itemRepository.getById(itemId)
+                ?: throw IllegalStateException("Item not found")
 
-        if (item.installmentGroupId != null) {
-            throw IllegalStateException("Item is already part of an installment group")
-        }
+            if (item.installmentGroupId != null) {
+                throw IllegalStateException("Item is already part of an installment group")
+            }
 
-        if (item.totalInstallments > 1) {
-            throw IllegalStateException("Item is already an installment purchase")
-        }
+            if (item.totalInstallments > 1) {
+                throw IllegalStateException("Item is already an installment purchase")
+            }
 
-        val bill = billRepository.getById(item.creditCardBillId)
-            ?: throw IllegalStateException("Bill not found")
+            val bill = billRepository.getById(item.creditCardBillId)
+                ?: throw IllegalStateException("Bill not found")
 
-        // Generate unique group ID for linking installments
-        val installmentGroupId = UUID.randomUUID().toString()
+            if (bill.status != BillStatus.OPEN) {
+                throw IllegalStateException("Não é possível alterar itens de uma fatura fechada ou paga")
+            }
 
-        // Update the current item with installment info
-        val updatedItem = item.copy(
-            installmentNumber = currentInstallment,
-            totalInstallments = totalInstallments,
-            installmentGroupId = installmentGroupId
-        )
-        itemRepository.update(updatedItem)
+            // Generate unique group ID for linking installments
+            val installmentGroupId = UUID.randomUUID().toString()
 
-        // Create remaining installments (currentInstallment + 1 to totalInstallments)
-        val createdItemIds = mutableListOf<Long>()
-        val remainingInstallments = (currentInstallment + 1)..totalInstallments
-
-        for (installmentNumber in remainingInstallments) {
-            // Calculate which bill this installment belongs to
-            // Each subsequent installment goes to the next month's bill
-            val monthsOffset = installmentNumber - currentInstallment
-            val billDate = LocalDate.of(bill.year, bill.month, 1)
-                .plusMonths(monthsOffset.toLong())
-
-            // Get or create the bill for this month
-            val targetBill = getOrCreateBillUseCase(
-                bill.creditCardId,
-                billDate.monthValue,
-                billDate.year
-            )
-
-            // Create the installment item
-            val newItem = CreditCardItem(
-                creditCardBillId = targetBill.id,
-                category = item.category,
-                description = item.description,
-                amount = item.amount, // Same amount per installment
-                purchaseDate = item.purchaseDate,
-                installmentNumber = installmentNumber,
+            // Update the current item with installment info
+            val updatedItem = item.copy(
+                installmentNumber = currentInstallment,
                 totalInstallments = totalInstallments,
                 installmentGroupId = installmentGroupId
             )
+            itemRepository.update(updatedItem)
 
-            val newItemId = itemRepository.insert(newItem)
-            createdItemIds.add(newItemId)
+            // Create remaining installments (currentInstallment + 1 to totalInstallments)
+            val createdItemIds = mutableListOf<Long>()
+            val remainingInstallments = (currentInstallment + 1)..totalInstallments
 
-            // Update bill total
-            val totalBillAmount = itemRepository.getTotalAmountByBill(targetBill.id)
-            billRepository.updateTotalAmount(targetBill.id, totalBillAmount)
+            for (installmentNumber in remainingInstallments) {
+                // Calculate which bill this installment belongs to
+                // Each subsequent installment goes to the next month's bill
+                val monthsOffset = installmentNumber - currentInstallment
+                val billDate = LocalDate.of(bill.year, bill.month, 1)
+                    .plusMonths(monthsOffset.toLong())
+
+                // Get or create the bill for this month
+                val targetBill = getOrCreateBillUseCase(
+                    bill.creditCardId,
+                    billDate.monthValue,
+                    billDate.year
+                )
+
+                if (targetBill.status != BillStatus.OPEN) {
+                    throw IllegalStateException(
+                        "Não é possível criar parcela $installmentNumber - fatura de ${billDate.monthValue}/${billDate.year} não está aberta"
+                    )
+                }
+
+                // Create the installment item
+                val newItem = CreditCardItem(
+                    creditCardBillId = targetBill.id,
+                    category = item.category,
+                    description = item.description,
+                    amount = item.amount, // Same amount per installment
+                    purchaseDate = item.purchaseDate,
+                    installmentNumber = installmentNumber,
+                    totalInstallments = totalInstallments,
+                    installmentGroupId = installmentGroupId
+                )
+
+                val newItemId = itemRepository.insert(newItem)
+                createdItemIds.add(newItemId)
+
+                // Update bill total
+                val totalBillAmount = itemRepository.getTotalAmountByBill(targetBill.id)
+                billRepository.updateTotalAmount(targetBill.id, totalBillAmount)
+            }
+
+            createdItemIds
         }
-
-        return createdItemIds
     }
 }

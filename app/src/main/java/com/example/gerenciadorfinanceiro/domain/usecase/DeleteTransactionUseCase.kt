@@ -1,5 +1,7 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import androidx.room.withTransaction
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
 import com.example.gerenciadorfinanceiro.data.repository.TransactionRepository
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
@@ -17,24 +19,27 @@ import javax.inject.Inject
  */
 class DeleteTransactionUseCase @Inject constructor(
     private val transactionRepository: TransactionRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val database: AppDatabase
 ) {
     suspend operator fun invoke(transactionId: Long): Boolean {
-        val transaction = transactionRepository.getById(transactionId) ?: return false
+        return database.withTransaction {
+            val transaction = transactionRepository.getById(transactionId) ?: return@withTransaction false
 
-        if (transaction.status == TransactionStatus.COMPLETED && !transaction.isSkippedRecurrence) {
-            when (transaction.type) {
-                TransactionType.INCOME -> {
-                    accountRepository.decreaseBalance(transaction.accountId, transaction.amount)
-                }
-                TransactionType.EXPENSE -> {
-                    accountRepository.increaseBalance(transaction.accountId, transaction.amount)
+            if (transaction.status == TransactionStatus.COMPLETED && !transaction.isSkippedRecurrence) {
+                when (transaction.type) {
+                    TransactionType.INCOME -> {
+                        accountRepository.decreaseBalance(transaction.accountId, transaction.amount)
+                    }
+                    TransactionType.EXPENSE -> {
+                        accountRepository.increaseBalance(transaction.accountId, transaction.amount)
+                    }
                 }
             }
+
+            transactionRepository.deleteById(transactionId)
+
+            true
         }
-
-        transactionRepository.deleteById(transactionId)
-
-        return true
     }
 }

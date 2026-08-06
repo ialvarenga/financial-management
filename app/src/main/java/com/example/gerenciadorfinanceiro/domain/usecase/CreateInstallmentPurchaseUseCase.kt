@@ -1,8 +1,11 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import androidx.room.withTransaction
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepository
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardItemRepository
+import com.example.gerenciadorfinanceiro.domain.model.BillStatus
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import java.time.LocalDate
 import java.util.UUID
@@ -11,7 +14,8 @@ import javax.inject.Inject
 class CreateInstallmentPurchaseUseCase @Inject constructor(
     private val billRepository: CreditCardBillRepository,
     private val itemRepository: CreditCardItemRepository,
-    private val getOrCreateBillUseCase: GetOrCreateBillUseCase
+    private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
+    private val database: AppDatabase
 ) {
     /**
      * Creates an installment purchase across multiple credit card bills
@@ -48,44 +52,54 @@ class CreateInstallmentPurchaseUseCase @Inject constructor(
         // Create items for each installment
         val itemIds = mutableListOf<Long>()
 
-        for (installmentNumber in 1..numberOfInstallments) {
-            // Calculate which bill this installment belongs to
-            // Start from the provided startMonth/startYear and add months for each installment
-            val billDate = LocalDate.of(startYear, startMonth, 1)
-                .plusMonths((installmentNumber - 1).toLong())
+        // Runs as one DB transaction so a later installment landing on a non-OPEN bill
+        // rejects the whole purchase instead of leaving only some installments created.
+        database.withTransaction {
+            for (installmentNumber in 1..numberOfInstallments) {
+                // Calculate which bill this installment belongs to
+                // Start from the provided startMonth/startYear and add months for each installment
+                val billDate = LocalDate.of(startYear, startMonth, 1)
+                    .plusMonths((installmentNumber - 1).toLong())
 
-            // Get or create the bill for this month
-            val bill = getOrCreateBillUseCase(
-                creditCardId,
-                billDate.monthValue,
-                billDate.year
-            )
+                // Get or create the bill for this month
+                val bill = getOrCreateBillUseCase(
+                    creditCardId,
+                    billDate.monthValue,
+                    billDate.year
+                )
 
-            // Calculate amount for this installment (first one gets the remainder)
-            val installmentAmount = if (installmentNumber == 1) {
-                baseInstallmentAmount + remainder
-            } else {
-                baseInstallmentAmount
+                if (bill.status != BillStatus.OPEN) {
+                    throw IllegalStateException(
+                        "Não é possível criar parcela $installmentNumber - fatura de ${billDate.monthValue}/${billDate.year} não está aberta"
+                    )
+                }
+
+                // Calculate amount for this installment (first one gets the remainder)
+                val installmentAmount = if (installmentNumber == 1) {
+                    baseInstallmentAmount + remainder
+                } else {
+                    baseInstallmentAmount
+                }
+
+                // Create the item
+                val item = CreditCardItem(
+                    creditCardBillId = bill.id,
+                    category = category,
+                    description = "$description ($installmentNumber/$numberOfInstallments)",
+                    amount = installmentAmount,
+                    purchaseDate = purchaseDate,
+                    installmentNumber = installmentNumber,
+                    totalInstallments = numberOfInstallments,
+                    installmentGroupId = installmentGroupId
+                )
+
+                val itemId = itemRepository.insert(item)
+                itemIds.add(itemId)
+
+                // Update bill total
+                val totalBillAmount = itemRepository.getTotalAmountByBill(bill.id)
+                billRepository.updateTotalAmount(bill.id, totalBillAmount)
             }
-
-            // Create the item
-            val item = CreditCardItem(
-                creditCardBillId = bill.id,
-                category = category,
-                description = "$description ($installmentNumber/$numberOfInstallments)",
-                amount = installmentAmount,
-                purchaseDate = purchaseDate,
-                installmentNumber = installmentNumber,
-                totalInstallments = numberOfInstallments,
-                installmentGroupId = installmentGroupId
-            )
-
-            val itemId = itemRepository.insert(item)
-            itemIds.add(itemId)
-
-            // Update bill total
-            val totalBillAmount = itemRepository.getTotalAmountByBill(bill.id)
-            billRepository.updateTotalAmount(bill.id, totalBillAmount)
         }
 
         return itemIds

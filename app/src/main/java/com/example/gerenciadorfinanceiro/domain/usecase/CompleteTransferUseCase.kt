@@ -1,5 +1,7 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import androidx.room.withTransaction
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
 import com.example.gerenciadorfinanceiro.data.repository.TransferRepository
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
@@ -14,7 +16,8 @@ import javax.inject.Inject
  */
 class CompleteTransferUseCase @Inject constructor(
     private val transferRepository: TransferRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val database: AppDatabase
 ) {
     /**
      * Completes a pending transfer and updates account balances.
@@ -22,12 +25,12 @@ class CompleteTransferUseCase @Inject constructor(
      * @param transferId The ID of the transfer to complete
      * @return true if the transfer was found and completed, false otherwise
      */
-    suspend operator fun invoke(transferId: Long): Boolean {
-        val transfer = transferRepository.getById(transferId) ?: return false
+    suspend operator fun invoke(transferId: Long): Boolean = database.withTransaction {
+        val transfer = transferRepository.getById(transferId) ?: return@withTransaction false
 
         // Only complete if currently pending
         if (transfer.status != TransactionStatus.PENDING) {
-            return false
+            return@withTransaction false
         }
 
         // Update status to completed
@@ -44,7 +47,7 @@ class CompleteTransferUseCase @Inject constructor(
         // Add amount to destination account (fee is not transferred)
         accountRepository.increaseBalance(transfer.toAccountId, transfer.amount)
 
-        return true
+        true
     }
 }
 

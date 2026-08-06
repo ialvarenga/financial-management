@@ -69,6 +69,9 @@ interface CreditCardItemDao {
     @Query("DELETE FROM credit_card_items WHERE creditCardBillId = :billId")
     suspend fun deleteAllByBill(billId: Long)
 
+    @Query("DELETE FROM credit_card_items")
+    suspend fun deleteAll()
+
     @Query("""
         SELECT COALESCE(SUM(items.amount), 0)
         FROM credit_card_items items

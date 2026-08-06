@@ -42,4 +42,7 @@ interface CreditCardDao {
 
     @Query("SELECT COUNT(*) FROM credit_cards WHERE isActive = 1")
     suspend fun getActiveCount(): Int
+
+    @Query("DELETE FROM credit_cards")
+    suspend fun deleteAll()
 }

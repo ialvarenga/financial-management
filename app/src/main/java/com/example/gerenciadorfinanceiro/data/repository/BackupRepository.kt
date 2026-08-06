@@ -56,109 +56,205 @@ class BackupRepository @Inject constructor(
         writeSafetyBackup()
 
         database.withTransaction {
-            database.clearAllTables()
-
-            val accountIdMap = mutableMapOf<Long, Long>()
-            if (filter.accounts) {
-                data.accounts.forEach { account ->
-                    val oldId = account.id
-                    val newId = accountDao.insert(account.copy(id = 0))
-                    accountIdMap[oldId] = newId
-                }
+            if (filter == ImportEntityFilter()) {
+                // Restoring everything: wipe the whole database and rebuild it fresh from
+                // the backup, matching the "make my data look exactly like this backup" intent.
+                importAllReplacingEverything(data)
+            } else {
+                // Restoring a subset: never delete anything. Only the selected entities are
+                // inserted/updated (by their original backup id), so anything the user did
+                // NOT select - and anything in the current database that isn't in the backup -
+                // is left completely untouched.
+                validatePartialFilterConsistency(filter)
+                importSelectedEntitiesOnly(data, filter)
             }
+        }
+    }
 
-            val creditCardIdMap = mutableMapOf<Long, Long>()
-            if (filter.creditCards) {
-                data.creditCards.forEach { card ->
-                    val oldId = card.id
-                    val remappedCard = card.copy(
-                        id = 0,
-                        paymentAccountId = card.paymentAccountId?.let { accountIdMap[it] }
-                    )
-                    val newId = creditCardDao.insert(remappedCard)
-                    creditCardIdMap[oldId] = newId
-                }
-            }
+    private suspend fun importAllReplacingEverything(data: FinancialData) {
+        database.clearAllTables()
 
-            // Recurrences are inserted before transactions/credit-card-items so their new
-            // autoincrement ids are known before remapping the recurrenceId FK on those rows.
-            val recurrenceIdMap = mutableMapOf<Long, Long>()
-            if (filter.recurrences) {
-                data.recurrences.forEach { recurrence ->
-                    val oldId = recurrence.id
-                    val remappedRecurrence = recurrence.copy(
-                        id = 0,
-                        accountId = recurrence.accountId?.let { accountIdMap[it] },
-                        creditCardId = recurrence.creditCardId?.let { creditCardIdMap[it] }
-                    )
-                    val newId = recurrenceDao.insert(remappedRecurrence)
-                    recurrenceIdMap[oldId] = newId
-                }
-            }
+        val accountIdMap = mutableMapOf<Long, Long>()
+        data.accounts.forEach { account ->
+            val oldId = account.id
+            val newId = accountDao.insert(account.copy(id = 0))
+            accountIdMap[oldId] = newId
+        }
 
-            if (filter.transactions) {
-                data.transactions.forEach { transaction ->
-                    val remappedTransaction = transaction.copy(
-                        id = 0,
-                        accountId = accountIdMap[transaction.accountId]
-                            ?: throw IllegalStateException("Invalid accountId reference: ${transaction.accountId}"),
-                        recurrenceId = transaction.recurrenceId?.let { recurrenceIdMap[it] }
-                    )
-                    transactionDao.insert(remappedTransaction)
-                }
-            }
+        val creditCardIdMap = mutableMapOf<Long, Long>()
+        data.creditCards.forEach { card ->
+            val oldId = card.id
+            val remappedCard = card.copy(
+                id = 0,
+                paymentAccountId = card.paymentAccountId?.let { accountIdMap[it] }
+            )
+            val newId = creditCardDao.insert(remappedCard)
+            creditCardIdMap[oldId] = newId
+        }
 
-            if (filter.transfers) {
-                data.transfers.forEach { transfer ->
-                    val remappedTransfer = transfer.copy(
-                        id = 0,
-                        fromAccountId = accountIdMap[transfer.fromAccountId]
-                            ?: throw IllegalStateException("Invalid fromAccountId reference: ${transfer.fromAccountId}"),
-                        toAccountId = accountIdMap[transfer.toAccountId]
-                            ?: throw IllegalStateException("Invalid toAccountId reference: ${transfer.toAccountId}")
-                    )
-                    transferDao.insert(remappedTransfer)
-                }
-            }
+        // Recurrences are inserted before transactions/credit-card-items so their new
+        // autoincrement ids are known before remapping the recurrenceId FK on those rows.
+        val recurrenceIdMap = mutableMapOf<Long, Long>()
+        data.recurrences.forEach { recurrence ->
+            val oldId = recurrence.id
+            val remappedRecurrence = recurrence.copy(
+                id = 0,
+                accountId = recurrence.accountId?.let { accountIdMap[it] },
+                creditCardId = recurrence.creditCardId?.let { creditCardIdMap[it] }
+            )
+            val newId = recurrenceDao.insert(remappedRecurrence)
+            recurrenceIdMap[oldId] = newId
+        }
 
-            val creditCardBillIdMap = mutableMapOf<Long, Long>()
-            if (filter.creditCardBills) {
-                data.creditCardBills.forEach { bill ->
-                    val oldId = bill.id
-                    val remappedBill = bill.copy(
-                        id = 0,
-                        creditCardId = creditCardIdMap[bill.creditCardId]
-                            ?: throw IllegalStateException("Invalid creditCardId reference: ${bill.creditCardId}")
-                    )
-                    val newId = creditCardBillDao.insert(remappedBill)
-                    creditCardBillIdMap[oldId] = newId
-                }
-            }
+        data.transactions.forEach { transaction ->
+            val remappedTransaction = transaction.copy(
+                id = 0,
+                accountId = accountIdMap[transaction.accountId]
+                    ?: throw IllegalStateException("Invalid accountId reference: ${transaction.accountId}"),
+                recurrenceId = transaction.recurrenceId?.let { recurrenceIdMap[it] }
+            )
+            transactionDao.insert(remappedTransaction)
+        }
 
-            if (filter.creditCardItems) {
-                data.creditCardItems.forEach { item ->
-                    val remappedItem = item.copy(
-                        id = 0,
-                        creditCardBillId = creditCardBillIdMap[item.creditCardBillId]
-                            ?: throw IllegalStateException("Invalid creditCardBillId reference: ${item.creditCardBillId}"),
-                        recurrenceId = item.recurrenceId?.let { recurrenceIdMap[it] }
-                    )
-                    creditCardItemDao.insert(remappedItem)
-                }
-            }
+        data.transfers.forEach { transfer ->
+            val remappedTransfer = transfer.copy(
+                id = 0,
+                fromAccountId = accountIdMap[transfer.fromAccountId]
+                    ?: throw IllegalStateException("Invalid fromAccountId reference: ${transfer.fromAccountId}"),
+                toAccountId = accountIdMap[transfer.toAccountId]
+                    ?: throw IllegalStateException("Invalid toAccountId reference: ${transfer.toAccountId}")
+            )
+            transferDao.insert(remappedTransfer)
+        }
 
-            // Restore notification dedup history so already-captured bank notifications
-            // aren't re-processed into duplicate transactions. The created* ids point at
-            // pre-restore rows, so they are dropped.
-            data.processedNotifications?.forEach { notification ->
-                processedNotificationDao.insert(
-                    notification.copy(
-                        id = 0,
-                        createdTransactionId = null,
-                        createdCreditCardItemId = null
-                    )
+        val creditCardBillIdMap = mutableMapOf<Long, Long>()
+        data.creditCardBills.forEach { bill ->
+            val oldId = bill.id
+            val remappedBill = bill.copy(
+                id = 0,
+                creditCardId = creditCardIdMap[bill.creditCardId]
+                    ?: throw IllegalStateException("Invalid creditCardId reference: ${bill.creditCardId}")
+            )
+            val newId = creditCardBillDao.insert(remappedBill)
+            creditCardBillIdMap[oldId] = newId
+        }
+
+        data.creditCardItems.forEach { item ->
+            val remappedItem = item.copy(
+                id = 0,
+                creditCardBillId = creditCardBillIdMap[item.creditCardBillId]
+                    ?: throw IllegalStateException("Invalid creditCardBillId reference: ${item.creditCardBillId}"),
+                recurrenceId = item.recurrenceId?.let { recurrenceIdMap[it] }
+            )
+            creditCardItemDao.insert(remappedItem)
+        }
+
+        // Restore notification dedup history so already-captured bank notifications
+        // aren't re-processed into duplicate transactions. The created* ids point at
+        // pre-restore rows, so they are dropped.
+        data.processedNotifications?.forEach { notification ->
+            processedNotificationDao.insert(
+                notification.copy(
+                    id = 0,
+                    createdTransactionId = null,
+                    createdCreditCardItemId = null
                 )
+            )
+        }
+    }
+
+    // Accounts/CreditCards/CreditCardBills cascade-delete their dependents at the DB level.
+    // Since importSelectedEntitiesOnly upserts by original id (not a fresh clear+rebuild), a
+    // selected parent whose row already exists locally can trigger that cascade via
+    // OnConflictStrategy.REPLACE. Requiring the cascade-linked children to be selected too
+    // means that replacement always re-inserts what it just cascaded away, in the same
+    // transaction - so nothing the user didn't ask to touch, and nothing they DID ask to
+    // restore, is ever lost.
+    private fun validatePartialFilterConsistency(filter: ImportEntityFilter) {
+        if (filter.accounts && !(filter.transactions && filter.transfers && filter.recurrences)) {
+            throw IllegalArgumentException(
+                "Para restaurar Contas, Transações, Transferências e Recorrências também devem ser selecionadas"
+            )
+        }
+        if (filter.creditCards && !(filter.creditCardBills && filter.recurrences)) {
+            throw IllegalArgumentException(
+                "Para restaurar Cartões de Crédito, Faturas e Recorrências também devem ser selecionadas"
+            )
+        }
+        if (filter.creditCardBills && !filter.creditCardItems) {
+            throw IllegalArgumentException(
+                "Para restaurar Faturas, Itens da Fatura também devem ser selecionados"
+            )
+        }
+    }
+
+    private suspend fun importSelectedEntitiesOnly(data: FinancialData, filter: ImportEntityFilter) {
+        // Original backup ids are preserved (not reassigned) so a selected row lines up with
+        // whatever it already referenced - whether or not that referenced entity is also part
+        // of this restore. Hard foreign keys (e.g. Transaction.accountId) are left for Room's
+        // own FK enforcement to reject with a clear failure if the referenced row is missing;
+        // optional ones are nulled out (or, for Recurrence, skipped) instead of failing the
+        // whole restore over an optional link.
+        if (filter.accounts) {
+            data.accounts.forEach { accountDao.insert(it) }
+        }
+
+        if (filter.creditCards) {
+            data.creditCards.forEach { card ->
+                val paymentAccountId = card.paymentAccountId?.takeIf { accountDao.getById(it) != null }
+                creditCardDao.insert(card.copy(paymentAccountId = paymentAccountId))
             }
+        }
+
+        if (filter.recurrences) {
+            data.recurrences.forEach { recurrence ->
+                val accountStillExists = recurrence.accountId?.let { accountDao.getById(it) != null } ?: true
+                val creditCardStillExists = recurrence.creditCardId?.let { creditCardDao.getById(it) != null } ?: true
+                // Recurrence declares CASCADE on both links: if what it charges no longer
+                // exists in this restore, skip it rather than insert a recurrence detached
+                // from its account/card.
+                if (accountStillExists && creditCardStillExists) {
+                    recurrenceDao.insert(recurrence)
+                }
+            }
+        }
+
+        if (filter.transactions) {
+            data.transactions.forEach { transaction ->
+                val recurrenceId = transaction.recurrenceId?.takeIf { recurrenceDao.getById(it) != null }
+                transactionDao.insert(transaction.copy(recurrenceId = recurrenceId))
+            }
+        }
+
+        if (filter.transfers) {
+            data.transfers.forEach { transfer ->
+                transferDao.insert(transfer)
+            }
+        }
+
+        if (filter.creditCardBills) {
+            data.creditCardBills.forEach { bill ->
+                creditCardBillDao.insert(bill)
+            }
+        }
+
+        if (filter.creditCardItems) {
+            data.creditCardItems.forEach { item ->
+                val recurrenceId = item.recurrenceId?.takeIf { recurrenceDao.getById(it) != null }
+                creditCardItemDao.insert(item.copy(recurrenceId = recurrenceId))
+            }
+        }
+
+        // Notification dedup history is metadata, not user-facing financial data - always
+        // refreshed regardless of filter, same as a full restore.
+        data.processedNotifications?.forEach { notification ->
+            processedNotificationDao.insert(
+                notification.copy(
+                    id = 0,
+                    createdTransactionId = null,
+                    createdCreditCardItemId = null
+                )
+            )
         }
     }
 

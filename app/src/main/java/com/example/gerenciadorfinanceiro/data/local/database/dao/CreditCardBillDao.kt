@@ -80,6 +80,9 @@ interface CreditCardBillDao {
 
     @Query("SELECT * FROM credit_card_bills WHERE status = 'OPEN' ORDER BY year ASC, month ASC")
     fun getAllOpenBills(): Flow<List<CreditCardBill>>
+
+    @Query("DELETE FROM credit_card_bills")
+    suspend fun deleteAll()
 }
 
 data class CardBillTotal(

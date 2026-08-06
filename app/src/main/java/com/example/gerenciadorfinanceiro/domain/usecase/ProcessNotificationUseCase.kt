@@ -57,33 +57,39 @@ class ProcessNotificationUseCase @Inject constructor(
 
             val notificationKey = generateKey(parsed.source, parsed.timestamp, parsed.amount)
 
-            if (processedNotificationRepository.exists(notificationKey)) {
-                Log.d(TAG, "Notification already processed: $notificationKey")
-                return Result.success(Unit)
-            }
-
-            // Check for duplicates in existing data before creating
-            if (parsed.paymentMethod == PaymentMethod.CREDIT_CARD) {
-                if (checkDuplicateNotificationUseCase.isCreditCardItemDuplicate(parsed)) {
-                    Log.d(TAG, "Skipping duplicate credit card item: ${parsed.description}")
-                    return Result.success(Unit)
+            // The whole duplicate-check-then-insert sequence runs under one lock so a
+            // notification redelivered in quick succession can't be processed twice by
+            // two concurrent calls that both pass the checks before either has inserted.
+            checkDuplicateNotificationUseCase.guarded {
+                if (processedNotificationRepository.exists(notificationKey)) {
+                    Log.d(TAG, "Notification already processed: $notificationKey")
+                    return@guarded
                 }
-            } else {
-                if (checkDuplicateNotificationUseCase.isTransactionDuplicate(parsed)) {
-                    Log.d(TAG, "Skipping duplicate transaction: ${parsed.description}")
-                    return Result.success(Unit)
+
+                // Check for duplicates in existing data before creating
+                if (parsed.paymentMethod == PaymentMethod.CREDIT_CARD) {
+                    if (checkDuplicateNotificationUseCase.isCreditCardItemDuplicate(parsed)) {
+                        Log.d(TAG, "Skipping duplicate credit card item: ${parsed.description}")
+                        return@guarded
+                    }
+                } else {
+                    if (checkDuplicateNotificationUseCase.isTransactionDuplicate(parsed)) {
+                        Log.d(TAG, "Skipping duplicate transaction: ${parsed.description}")
+                        return@guarded
+                    }
                 }
+
+                val processedNotification = when (parsed.paymentMethod) {
+                    PaymentMethod.CREDIT_CARD -> createCreditCardPurchaseUseCase(parsed, notificationKey)
+                    PaymentMethod.PIX, PaymentMethod.DEBIT, PaymentMethod.TRANSFER -> createBankTransactionUseCase(parsed, notificationKey)
+                    else -> throw IllegalArgumentException("Unsupported payment method: ${parsed.paymentMethod}")
+                }
+
+                processedNotificationRepository.insert(processedNotification)
+
+                Log.d(TAG, "Successfully processed notification from $source")
             }
 
-            val processedNotification = when (parsed.paymentMethod) {
-                PaymentMethod.CREDIT_CARD -> createCreditCardPurchaseUseCase(parsed, notificationKey)
-                PaymentMethod.PIX, PaymentMethod.DEBIT, PaymentMethod.TRANSFER -> createBankTransactionUseCase(parsed, notificationKey)
-                else -> throw IllegalArgumentException("Unsupported payment method: ${parsed.paymentMethod}")
-            }
-
-            processedNotificationRepository.insert(processedNotification)
-
-            Log.d(TAG, "Successfully processed notification from $source")
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Error processing notification from $source: ${e.message}", e)

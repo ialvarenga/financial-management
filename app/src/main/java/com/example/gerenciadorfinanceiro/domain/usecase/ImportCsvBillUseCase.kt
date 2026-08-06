@@ -1,11 +1,14 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import androidx.room.withTransaction
 import com.example.gerenciadorfinanceiro.data.csv.CsvBillParser
 import com.example.gerenciadorfinanceiro.data.csv.CsvImportConfig
 import com.example.gerenciadorfinanceiro.data.csv.CsvParseResult
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepository
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardItemRepository
+import com.example.gerenciadorfinanceiro.domain.model.BillStatus
 import com.example.gerenciadorfinanceiro.domain.model.CsvBillItem
 import java.io.InputStream
 import java.time.LocalDate
@@ -22,7 +25,8 @@ class ImportCsvBillUseCase @Inject constructor(
     private val csvParser: CsvBillParser,
     private val itemRepository: CreditCardItemRepository,
     private val billRepository: CreditCardBillRepository,
-    private val getOrCreateBillUseCase: GetOrCreateBillUseCase
+    private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
+    private val database: AppDatabase
 ) {
     /**
      * Import credit card bill items from a CSV file
@@ -66,7 +70,7 @@ class ImportCsvBillUseCase @Inject constructor(
         creditCardId: Long,
         month: Int,
         year: Int
-    ): ImportResult {
+    ): ImportResult = database.withTransaction {
         // Track all bills that need their totals updated
         val affectedBillIds = mutableSetOf<Long>()
         var totalItemsCreated = 0
@@ -74,6 +78,9 @@ class ImportCsvBillUseCase @Inject constructor(
 
         // Get or create the bill for the specified month (the "current" bill being imported)
         val currentBill = getOrCreateBillUseCase(creditCardId, month, year)
+        if (currentBill.status != BillStatus.OPEN) {
+            throw IllegalStateException("Não é possível importar para uma fatura fechada ou paga")
+        }
         affectedBillIds.add(currentBill.id)
 
         for (csvItem in items) {
@@ -118,6 +125,11 @@ class ImportCsvBillUseCase @Inject constructor(
                         futureDate.monthValue,
                         futureDate.year
                     )
+                    if (futureBill.status != BillStatus.OPEN) {
+                        throw IllegalStateException(
+                            "Não é possível criar parcela $futureInstallmentNumber - fatura de ${futureDate.monthValue}/${futureDate.year} não está aberta"
+                        )
+                    }
                     affectedBillIds.add(futureBill.id)
                     android.util.Log.d("ImportCSV", "Created installment $futureInstallmentNumber in ${futureDate.monthValue}/${futureDate.year}")
 
@@ -150,7 +162,7 @@ class ImportCsvBillUseCase @Inject constructor(
             billRepository.updateTotalAmount(billId, newTotal)
         }
 
-        return ImportResult.Success(totalItemsCreated, totalAmountImported)
+        ImportResult.Success(totalItemsCreated, totalAmountImported)
     }
 
     /**

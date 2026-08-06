@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepository
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardItemRepository
+import com.example.gerenciadorfinanceiro.domain.model.BillStatus
 import javax.inject.Inject
 
 class UpdateCreditCardItemUseCase @Inject constructor(
@@ -17,6 +18,12 @@ class UpdateCreditCardItemUseCase @Inject constructor(
      * @param item The credit card item to update
      */
     suspend operator fun invoke(item: CreditCardItem) {
+        val bill = billRepository.getById(item.creditCardBillId)
+            ?: throw IllegalStateException("Fatura não encontrada")
+        if (bill.status != BillStatus.OPEN) {
+            throw IllegalStateException("Não é possível alterar itens de uma fatura fechada ou paga")
+        }
+
         // Get the original item to check for category changes
         val originalItem = itemRepository.getById(item.id)
 

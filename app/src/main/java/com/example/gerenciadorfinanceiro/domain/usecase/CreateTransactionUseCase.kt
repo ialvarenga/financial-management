@@ -1,5 +1,7 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import androidx.room.withTransaction
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.local.entity.Transaction
 import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
 import com.example.gerenciadorfinanceiro.data.repository.TransactionRepository
@@ -9,14 +11,15 @@ import javax.inject.Inject
 
 class CreateTransactionUseCase @Inject constructor(
     private val transactionRepository: TransactionRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val database: AppDatabase
 ) {
     /**
      * Creates a transaction and updates account balance if the transaction is completed
      * @param transaction The transaction to create
      * @return The ID of the created transaction
      */
-    suspend operator fun invoke(transaction: Transaction): Long {
+    suspend operator fun invoke(transaction: Transaction): Long = database.withTransaction {
         // Insert the transaction
         val transactionId = transactionRepository.insert(transaction)
 
@@ -25,7 +28,7 @@ class CreateTransactionUseCase @Inject constructor(
             updateAccountBalance(transaction)
         }
 
-        return transactionId
+        transactionId
     }
 
     private suspend fun updateAccountBalance(transaction: Transaction) {

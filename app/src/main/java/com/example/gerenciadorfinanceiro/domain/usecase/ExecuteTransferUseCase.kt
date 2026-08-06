@@ -1,5 +1,7 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import androidx.room.withTransaction
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.local.entity.Transfer
 import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
 import com.example.gerenciadorfinanceiro.data.repository.TransferRepository
@@ -18,7 +20,8 @@ import javax.inject.Inject
  */
 class ExecuteTransferUseCase @Inject constructor(
     private val transferRepository: TransferRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val database: AppDatabase
 ) {
     /**
      * Creates a new transfer and updates balances if status is COMPLETED.
@@ -26,7 +29,7 @@ class ExecuteTransferUseCase @Inject constructor(
      * @param transfer The transfer to create
      * @return The ID of the created transfer
      */
-    suspend operator fun invoke(transfer: Transfer): Long {
+    suspend operator fun invoke(transfer: Transfer): Long = database.withTransaction {
         // Insert the transfer
         val transferId = transferRepository.insert(transfer)
 
@@ -35,7 +38,7 @@ class ExecuteTransferUseCase @Inject constructor(
             updateBalancesForTransfer(transfer)
         }
 
-        return transferId
+        transferId
     }
 
     private suspend fun updateBalancesForTransfer(transfer: Transfer) {

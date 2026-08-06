@@ -1,5 +1,7 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import androidx.room.withTransaction
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.local.entity.Transfer
 import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
 import com.example.gerenciadorfinanceiro.data.repository.TransferRepository
@@ -17,9 +19,10 @@ import javax.inject.Inject
  */
 class UpdateTransferUseCase @Inject constructor(
     private val transferRepository: TransferRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val database: AppDatabase
 ) {
-    suspend operator fun invoke(updatedTransfer: Transfer) {
+    suspend operator fun invoke(updatedTransfer: Transfer): Unit = database.withTransaction {
         val originalTransfer = transferRepository.getById(updatedTransfer.id)
             ?: throw IllegalArgumentException("Transfer not found: ${updatedTransfer.id}")
 

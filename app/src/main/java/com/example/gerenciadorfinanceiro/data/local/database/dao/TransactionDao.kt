@@ -136,6 +136,9 @@ interface TransactionDao {
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAll()
+
     @Query("UPDATE transactions SET status = :status, completedAt = :completedAt WHERE id = :id")
     suspend fun updateStatus(id: Long, status: TransactionStatus, completedAt: Long?)
 

@@ -1,5 +1,7 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import androidx.room.withTransaction
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.local.entity.Transaction
 import com.example.gerenciadorfinanceiro.data.repository.AccountRepository
 import com.example.gerenciadorfinanceiro.data.repository.TransactionRepository
@@ -9,7 +11,8 @@ import javax.inject.Inject
 
 class UpdateTransactionUseCase @Inject constructor(
     private val transactionRepository: TransactionRepository,
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val database: AppDatabase
 ) {
     /**
      * Updates a transaction and adjusts account balances accordingly.
@@ -22,7 +25,7 @@ class UpdateTransactionUseCase @Inject constructor(
      *
      * @param updatedTransaction The transaction with updated values
      */
-    suspend operator fun invoke(updatedTransaction: Transaction) {
+    suspend operator fun invoke(updatedTransaction: Transaction): Unit = database.withTransaction {
         // Get the original transaction to compare
         val originalTransaction = transactionRepository.getById(updatedTransaction.id)
             ?: throw IllegalArgumentException("Transaction not found: ${updatedTransaction.id}")
