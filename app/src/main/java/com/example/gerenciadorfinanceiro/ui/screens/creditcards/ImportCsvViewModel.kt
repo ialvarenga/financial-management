@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gerenciadorfinanceiro.data.csv.CsvFormat
 import com.example.gerenciadorfinanceiro.data.csv.CsvImportConfig
 import com.example.gerenciadorfinanceiro.data.csv.CsvParseResult
 import com.example.gerenciadorfinanceiro.data.csv.SkippedLine
@@ -27,7 +26,6 @@ import javax.inject.Inject
 
 data class ImportCsvUiState(
     val creditCard: CreditCard? = null,
-    val selectedFormat: CsvFormat = CsvFormat.GENERIC,
     val customConfig: CsvImportConfig = CsvImportConfig(),
     val skippedLines: List<SkippedLine> = emptyList(),
     val selectedMonth: Int = LocalDate.now().monthValue,
@@ -99,14 +97,6 @@ class ImportCsvViewModel @Inject constructor(
         }
     }
     
-    fun setFormat(format: CsvFormat) {
-        _uiState.update { it.copy(selectedFormat = format) }
-        // Re-parse if file is selected
-        if (_uiState.value.fileUri != null) {
-            _uiState.value.fileUri?.let { /* Will need to re-parse with getInputStream */ }
-        }
-    }
-    
     fun setMonth(month: Int) {
         _uiState.update { it.copy(selectedMonth = month) }
     }
@@ -134,24 +124,13 @@ class ImportCsvViewModel @Inject constructor(
     }
     
     fun onFileSelected(uri: Uri, fileName: String?, getInputStream: () -> InputStream?) {
-        _uiState.update { 
+        _uiState.update {
             it.copy(
-                fileUri = uri, 
+                fileUri = uri,
                 fileName = fileName,
                 errorMessage = null,
                 previewItems = emptyList()
             )
-        }
-        
-        // Auto-detect format, unless the user manually chose the custom format
-        if (_uiState.value.selectedFormat != CsvFormat.CUSTOM) {
-            val detectedFormat = getInputStream()?.let { stream ->
-                importCsvBillUseCase.detectFormat(stream)
-            }
-
-            if (detectedFormat != null) {
-                _uiState.update { it.copy(selectedFormat = detectedFormat) }
-            }
         }
     }
     
@@ -165,8 +144,8 @@ class ImportCsvViewModel @Inject constructor(
             _uiState.update { it.copy(isParsing = true, errorMessage = null) }
             
             val state = _uiState.value
-            val config = state.customConfig.takeIf { state.selectedFormat == CsvFormat.CUSTOM }
-            val result = importCsvBillUseCase.parsePreview(inputStream, state.selectedFormat, config)
+            val config = state.customConfig
+            val result = importCsvBillUseCase.parsePreview(inputStream, config)
 
             when (result) {
                 is CsvParseResult.Success -> {
@@ -182,9 +161,7 @@ class ImportCsvViewModel @Inject constructor(
                         )
                     }
                     // Persist the config that just worked
-                    if (config != null) {
-                        launch { settingsRepository.setCsvImportConfig(config) }
-                    }
+                    launch { settingsRepository.setCsvImportConfig(config) }
                 }
                 is CsvParseResult.Error -> {
                     _uiState.update { 

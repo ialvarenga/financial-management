@@ -5,6 +5,7 @@ import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardBill
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepository
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardRepository
 import com.example.gerenciadorfinanceiro.domain.model.BillStatus
+import com.example.gerenciadorfinanceiro.util.resolveDayOfMonth
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -44,14 +45,15 @@ class GetOrCreateBillUseCase @Inject constructor(
     }
 
     private suspend fun createBill(creditCard: CreditCard, month: Int, year: Int): CreditCardBill {
-        // Calculate closing date (day of the month)
-        val closingDate = LocalDate.of(year, month, creditCard.closingDay.coerceIn(1, 28))
+        // Calculate closing date (day of the month), clamping to the last valid day
+        // of shorter months (e.g. closing day 30 becomes Feb 28/29)
+        val closingDate = resolveDayOfMonth(year, month, creditCard.closingDay)
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()
 
         // Calculate due date (usually in the next month if after closing day)
-        val dueDate = LocalDate.of(year, month, creditCard.dueDay.coerceIn(1, 28))
+        val dueDate = resolveDayOfMonth(year, month, creditCard.dueDay)
             .let {
                 if (creditCard.dueDay < creditCard.closingDay) {
                     it.plusMonths(1)

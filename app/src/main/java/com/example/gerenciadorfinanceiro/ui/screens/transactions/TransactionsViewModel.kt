@@ -10,6 +10,7 @@ import com.example.gerenciadorfinanceiro.domain.model.ProjectedRecurrence
 import com.example.gerenciadorfinanceiro.domain.usecase.CompleteTransactionUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.CompleteTransferUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.ConfirmRecurrencePaymentUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.DeleteTransactionUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.DeleteTransferUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyExpensesUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.GetMonthlyTransactionsUseCase
@@ -50,6 +51,7 @@ class TransactionsViewModel @Inject constructor(
     private val completeTransferUseCase: CompleteTransferUseCase,
     private val confirmRecurrencePaymentUseCase: ConfirmRecurrencePaymentUseCase,
     private val skipRecurrenceUseCase: SkipRecurrenceUseCase,
+    private val deleteTransactionUseCase: DeleteTransactionUseCase,
     private val deleteTransferUseCase: DeleteTransferUseCase,
     private val transactionRepository: TransactionRepository,
     private val accountRepository: AccountRepository
@@ -129,7 +131,7 @@ class TransactionsViewModel @Inject constructor(
 
     fun deleteTransaction(transactionId: Long) {
         viewModelScope.launch {
-            transactionRepository.deleteById(transactionId)
+            deleteTransactionUseCase(transactionId)
         }
     }
 

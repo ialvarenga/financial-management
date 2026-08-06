@@ -1,7 +1,6 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
 import com.example.gerenciadorfinanceiro.data.csv.CsvBillParser
-import com.example.gerenciadorfinanceiro.data.csv.CsvFormat
 import com.example.gerenciadorfinanceiro.data.csv.CsvImportConfig
 import com.example.gerenciadorfinanceiro.data.csv.CsvParseResult
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
@@ -31,7 +30,7 @@ class ImportCsvBillUseCase @Inject constructor(
      * @param creditCardId The credit card to import to
      * @param month Target bill month (1-12)
      * @param year Target bill year
-     * @param format The CSV format to use
+     * @param config Column/delimiter/date/decimal configuration for parsing
      * @return ImportResult with success count or error message
      */
     suspend operator fun invoke(
@@ -39,10 +38,10 @@ class ImportCsvBillUseCase @Inject constructor(
         creditCardId: Long,
         month: Int,
         year: Int,
-        format: CsvFormat
+        config: CsvImportConfig
     ): ImportResult {
         // Parse the CSV
-        val parseResult = csvParser.parse(inputStream, format)
+        val parseResult = csvParser.parse(inputStream, config)
 
         return when (parseResult) {
             is CsvParseResult.Error -> {
@@ -189,8 +188,8 @@ class ImportCsvBillUseCase @Inject constructor(
     /**
      * Parse CSV and return preview of items without importing
      */
-    fun parsePreview(inputStream: InputStream, format: CsvFormat, config: CsvImportConfig? = null): CsvParseResult {
-        return csvParser.parse(inputStream, format, config)
+    fun parsePreview(inputStream: InputStream, config: CsvImportConfig): CsvParseResult {
+        return csvParser.parse(inputStream, config)
     }
 
     /**
@@ -216,13 +215,6 @@ class ImportCsvBillUseCase @Inject constructor(
         } catch (e: Exception) {
             ImportResult.Error("Erro ao importar: ${e.message}")
         }
-    }
-
-    /**
-     * Try to auto-detect the CSV format
-     */
-    fun detectFormat(inputStream: InputStream): CsvFormat? {
-        return csvParser.detectFormat(inputStream)
     }
 }
 

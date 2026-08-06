@@ -10,6 +10,7 @@ import com.example.gerenciadorfinanceiro.data.repository.TransferRepository
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
 import com.example.gerenciadorfinanceiro.domain.usecase.CompleteTransferUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.ExecuteTransferUseCase
+import com.example.gerenciadorfinanceiro.domain.usecase.UpdateTransferUseCase
 import com.example.gerenciadorfinanceiro.ui.components.normalizeCurrencyDigits
 import com.example.gerenciadorfinanceiro.util.digitsToCents
 import com.example.gerenciadorfinanceiro.util.toDigitsString
@@ -40,6 +41,7 @@ data class AddTransferUiState(
 class AddTransferViewModel @Inject constructor(
     private val executeTransferUseCase: ExecuteTransferUseCase,
     private val completeTransferUseCase: CompleteTransferUseCase,
+    private val updateTransferUseCase: UpdateTransferUseCase,
     private val transferRepository: TransferRepository,
     private val accountRepository: AccountRepository,
     savedStateHandle: SavedStateHandle
@@ -183,7 +185,7 @@ class AddTransferViewModel @Inject constructor(
                 )
 
                 if (_uiState.value.isEditing) {
-                    transferRepository.update(transfer)
+                    updateTransferUseCase(transfer)
                 } else {
                     executeTransferUseCase(transfer)
                 }

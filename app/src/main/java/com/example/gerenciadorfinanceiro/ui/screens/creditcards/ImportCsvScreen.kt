@@ -24,7 +24,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.data.csv.CsvDelimiter
-import com.example.gerenciadorfinanceiro.data.csv.CsvFormat
 import com.example.gerenciadorfinanceiro.data.csv.CsvImportConfig
 import com.example.gerenciadorfinanceiro.data.csv.DecimalStyle
 import com.example.gerenciadorfinanceiro.data.csv.NegativeHandling
@@ -93,7 +92,6 @@ fun ImportCsvScreen(
                         onSelectFile = {
                             filePickerLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*"))
                         },
-                        onFormatSelected = viewModel::setFormat,
                         onConfigChange = viewModel::updateCustomConfig,
                         onPreviousMonth = viewModel::selectPreviousMonth,
                         onNextMonth = viewModel::selectNextMonth,
@@ -147,14 +145,11 @@ fun ImportCsvScreen(
 private fun SelectFileContent(
     uiState: ImportCsvUiState,
     onSelectFile: () -> Unit,
-    onFormatSelected: (CsvFormat) -> Unit,
     onConfigChange: (CsvImportConfig) -> Unit,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onParseFile: () -> Unit
 ) {
-    var showFormatDropdown by remember { mutableStateOf(false) }
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -236,7 +231,7 @@ private fun SelectFileContent(
             }
         }
 
-        // Format Selector
+        // CSV Format Configuration
         item {
             Text(
                 text = "Formato do CSV",
@@ -246,45 +241,10 @@ private fun SelectFileContent(
         }
 
         item {
-            ExposedDropdownMenuBox(
-                expanded = showFormatDropdown,
-                onExpandedChange = { showFormatDropdown = it }
-            ) {
-                OutlinedTextField(
-                    value = uiState.selectedFormat.displayName,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Formato") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showFormatDropdown) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                )
-                ExposedDropdownMenu(
-                    expanded = showFormatDropdown,
-                    onDismissRequest = { showFormatDropdown = false }
-                ) {
-                    CsvFormat.entries.forEach { format ->
-                        DropdownMenuItem(
-                            text = { Text(format.displayName) },
-                            onClick = {
-                                onFormatSelected(format)
-                                showFormatDropdown = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        // Custom Format Configuration
-        if (uiState.selectedFormat == CsvFormat.CUSTOM) {
-            item {
-                CustomConfigCard(
-                    config = uiState.customConfig,
-                    onChange = onConfigChange
-                )
-            }
+            CustomConfigCard(
+                config = uiState.customConfig,
+                onChange = onConfigChange
+            )
         }
 
         // File Selection
@@ -394,8 +354,9 @@ private fun SelectFileContent(
                     Text(
                         text = "• Exporte a fatura do seu banco em formato CSV\n" +
                                "• O arquivo deve conter: data, descrição e valor\n" +
-                               "• Se usar formato genérico, use ponto-e-vírgula (;) como separador\n" +
-                               "• Valores em reais serão convertidos automaticamente",
+                               "• Ajuste as colunas, delimitador e formatos abaixo para " +
+                               "combinar com o arquivo exportado\n" +
+                               "• A configuração usada fica salva para a próxima importação",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

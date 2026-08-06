@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCard
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardBillRepository
 import com.example.gerenciadorfinanceiro.domain.model.BillStatus
+import com.example.gerenciadorfinanceiro.util.resolveDayOfMonth
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.ZoneId
@@ -21,9 +22,11 @@ class CloseBillUseCase @Inject constructor(
      */
     suspend operator fun invoke(creditCard: CreditCard, date: LocalDate = LocalDate.now()): Boolean {
         try {
-            // Check if today matches the closing day
-            if (date.dayOfMonth != creditCard.closingDay) {
-                Log.d(TAG, "Skipping card ${creditCard.name} - today (${date.dayOfMonth}) is not closing day (${creditCard.closingDay})")
+            // Check if today matches the closing day, clamped to the last valid day of
+            // this month (e.g. closing day 30 matches Feb 28/29)
+            val actualClosingDay = resolveDayOfMonth(date.year, date.monthValue, creditCard.closingDay).dayOfMonth
+            if (date.dayOfMonth != actualClosingDay) {
+                Log.d(TAG, "Skipping card ${creditCard.name} - today (${date.dayOfMonth}) is not closing day ($actualClosingDay)")
                 return false
             }
 

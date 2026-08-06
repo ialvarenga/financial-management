@@ -14,20 +14,6 @@ import java.time.format.DateTimeParseException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Supported CSV formats for different banks/credit cards
- */
-enum class CsvFormat(val displayName: String) {
-    NUBANK("Nubank"),
-    INTER("Inter"),
-    C6BANK("C6 Bank"),
-    ITAU("Itaú"),
-    BRADESCO("Bradesco"),
-    SANTANDER("Santander"),
-    GENERIC("Genérico (Data;Descrição;Valor)"),
-    CUSTOM("Personalizado")
-}
-
 data class SkippedLine(val lineNumber: Int, val content: String, val reason: String)
 
 sealed class CsvParseResult {
@@ -45,219 +31,31 @@ class CsvBillParser @Inject constructor() {
         private const val TAG = "CsvBillParser"
     }
 
-    private val brazilianDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-    private val isoDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-
     /**
-     * Parse a CSV file from an InputStream
+     * Parse a CSV file from an InputStream using the user-configured column/delimiter/format.
+     * Tolerant: bad lines are collected as SkippedLine instead of aborting the import.
      * @param inputStream The input stream of the CSV file
-     * @param format The CSV format to use for parsing
-     * @param config Custom parsing parameters, used only when format is CUSTOM
+     * @param config Column indices, delimiter, date pattern and decimal style
      * @return CsvParseResult containing parsed items or an error
      */
-    fun parse(inputStream: InputStream, format: CsvFormat, config: CsvImportConfig? = null): CsvParseResult {
+    fun parse(inputStream: InputStream, config: CsvImportConfig = CsvImportConfig()): CsvParseResult {
         return try {
             val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
             val lines = reader.readLines()
             reader.close()
 
-            Log.d(TAG, "parse: read ${lines.size} lines, format=$format")
+            Log.d(TAG, "parse: read ${lines.size} lines")
 
             if (lines.isEmpty()) {
                 Log.w(TAG, "parse: file is empty")
                 return CsvParseResult.Error("Arquivo CSV vazio")
             }
 
-            when (format) {
-                CsvFormat.NUBANK -> parseNubank(lines)
-                CsvFormat.ITAU -> parseItau(lines)
-                CsvFormat.CUSTOM -> parseCustom(lines, config ?: CsvImportConfig())
-                else -> parseGeneric(lines)
-            }
+            parseCustom(lines, config)
         } catch (e: Exception) {
             Log.e(TAG, "parse: failed to read file", e)
             CsvParseResult.Error("Erro ao ler arquivo: ${e.message}")
         }
-    }
-
-    /**
-     * Try to auto-detect the CSV format based on header/content
-     */
-    fun detectFormat(inputStream: InputStream): CsvFormat? {
-        return try {
-            val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
-            val firstLines = (1..5).mapNotNull { reader.readLine() }
-            reader.close()
-
-            val content = firstLines.joinToString("\n").lowercase()
-
-            val detected = when {
-                content.contains("nubank") || content.contains("date,title,amount") -> CsvFormat.NUBANK
-                content.contains("inter") || content.contains("data;lancamento;valor") -> CsvFormat.INTER
-                content.contains("c6") || content.contains("data da compra") -> CsvFormat.C6BANK
-                content.contains("itau") || content.contains("itaú") -> CsvFormat.ITAU
-                content.contains("bradesco") -> CsvFormat.BRADESCO
-                content.contains("santander") -> CsvFormat.SANTANDER
-                else -> CsvFormat.GENERIC
-            }
-
-            Log.d(TAG, "detectFormat: detected=$detected")
-            detected
-        } catch (e: Exception) {
-            Log.e(TAG, "detectFormat: failed to detect format", e)
-            null
-        }
-    }
-
-    // Nubank format: date,title,amount (uses commas, amount in negative for expenses)
-    private fun parseNubank(lines: List<String>): CsvParseResult {
-        val items = mutableListOf<CsvBillItem>()
-        val dataLines = skipHeader(lines, listOf("date", "title", "amount"))
-        Log.d(TAG, "parseNubank: ${dataLines.size} data lines")
-
-        for ((index, line) in dataLines.withIndex()) {
-            if (line.isBlank()) continue
-
-            try {
-                val parts = parse3FieldCsvLine(line, ',')
-                if (parts.size < 3) {
-                    Log.w(TAG, "parseNubank: skipping line ${index + 2}, not enough fields (${parts.size}): $line")
-                    continue
-                }
-
-                val date = parseDate(parts[0].trim())
-                val description = parts[1].trim()
-                val amountStr = parts[2].trim().replace(",", ".").replace("\"", "")
-                val amount = parseAmount(amountStr)
-
-                val (installmentNumber, totalInstallments) = parseInstallments(description)
-
-                items.add(
-                    CsvBillItem(
-                        date = date,
-                        description = description,
-                        amount = amount,
-                        category = detectCategory(description),
-                        installmentNumber = installmentNumber,
-                        totalInstallments = totalInstallments
-                    )
-                )
-
-            } catch (e: Exception) {
-                Log.e(TAG, "parseNubank: error on line ${index + 2}: $line", e)
-                return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
-            }
-        }
-
-        Log.d(TAG, "parseNubank: parsed ${items.size} items")
-        return CsvParseResult.Success(items)
-    }
-
-    // Itaú format
-    private fun parseItau(lines: List<String>): CsvParseResult {
-        val items = mutableListOf<CsvBillItem>()
-        val dataLines = skipHeader(lines, listOf("data", "lançamento", "valor"))
-        Log.d(TAG, "parseItau: ${dataLines.size} data lines")
-
-        for ((index, line) in dataLines.withIndex()) {
-            if (line.isBlank()) continue
-
-            try {
-                val parts = parse3FieldCsvLine(line, ',')
-                if (parts.size < 3) {
-                    Log.w(TAG, "parseItau: skipping line ${index + 2}, not enough fields (${parts.size}): $line")
-                    continue
-                }
-
-                val date = parseDate(parts[0].trim())
-                val amountStr = parts.last().trim()
-                val amount = parseAmount(amountStr)
-                val description = parts[1].trim()
-
-                val (installmentNumber, totalInstallments) = parseInstallments(description)
-                items.add(
-                    CsvBillItem(
-                        date = date,
-                        description = description,
-                        amount = amount,
-                        category = detectCategory(description),
-                        installmentNumber = installmentNumber,
-                        totalInstallments = totalInstallments
-                    )
-                )
-
-            } catch (e: Exception) {
-                Log.e(TAG, "parseItau: error on line ${index + 2}: $line", e)
-                return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
-            }
-        }
-
-        Log.d(TAG, "parseItau: parsed ${items.size} items")
-        return CsvParseResult.Success(items)
-    }
-
-    // Generic format: Date;Description;Amount (semicolon separated) or comma separated
-    // Assumes US number format (dot as decimal separator)
-    private fun parseGeneric(lines: List<String>): CsvParseResult {
-        val items = mutableListOf<CsvBillItem>()
-        val dataLines = if (lines.first().lowercase().contains("data") ||
-                           lines.first().lowercase().contains("date")) {
-            lines.drop(1)
-        } else {
-            lines
-        }
-        Log.d(TAG, "parseGeneric: ${dataLines.size} data lines")
-
-        for ((index, line) in dataLines.withIndex()) {
-            if (line.isBlank()) continue
-
-            try {
-                // Try semicolon first, then comma
-                val parts = if (line.contains(";")) {
-                    line.split(";")
-                } else {
-                    parse3FieldCsvLine(line, ',')
-                }
-
-                if (parts.size < 3) {
-                    Log.w(TAG, "parseGeneric: skipping line ${index + 2}, not enough fields (${parts.size}): $line")
-                    continue
-                }
-
-                val date = parseDate(parts[0].trim())
-                val description = parts[1].trim()
-                // US format: dot is decimal separator, just clean currency symbols
-                val amountStr = parts[2].trim()
-                    .replace("R$", "")
-                    .replace("$", "")
-                    .replace(",", "")
-                    .trim()
-                val amount = parseAmount(amountStr)
-
-                val (installmentNumber, totalInstallments) = parseInstallments(description)
-
-                if (amount > 0) {
-                    items.add(
-                        CsvBillItem(
-                            date = date,
-                            description = description,
-                            amount = amount,
-                            category = detectCategory(description),
-                            installmentNumber = installmentNumber,
-                            totalInstallments = totalInstallments
-                        )
-                    )
-                } else {
-                    Log.d(TAG, "parseGeneric: skipping line ${index + 2} with non-positive amount=$amount")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "parseGeneric: error on line ${index + 2}: $line", e)
-                return CsvParseResult.Error("Erro na linha ${index + 2}: ${e.message}", index + 2)
-            }
-        }
-
-        Log.d(TAG, "parseGeneric: parsed ${items.size} items")
-        return CsvParseResult.Success(items)
     }
 
     // Custom format: user-defined columns, delimiter, date/decimal format and skip rows.
@@ -346,15 +144,6 @@ class CsvBillParser @Inject constructor() {
         return value.setScale(2, RoundingMode.HALF_UP).multiply(BigDecimal(100)).longValueExact()
     }
 
-    private fun skipHeader(lines: List<String>, headerKeywords: List<String>): List<String> {
-        val firstLine = lines.firstOrNull()?.lowercase() ?: return lines
-        return if (headerKeywords.any { firstLine.contains(it) }) {
-            lines.drop(1)
-        } else {
-            lines
-        }
-    }
-
     private fun parseCsvLine(line: String, delimiter: Char): List<String> {
         val result = mutableListOf<String>()
         var current = StringBuilder()
@@ -373,64 +162,6 @@ class CsvBillParser @Inject constructor() {
         result.add(current.toString())
 
         return result
-    }
-
-    /**
-     * Parse a CSV line for 3-field format (date, description, amount)
-     * Handles cases where description contains commas but isn't quoted
-     */
-    private fun parse3FieldCsvLine(line: String, delimiter: Char): List<String> {
-        // First try standard parsing (handles quoted fields)
-        var standardParts = parseCsvLine(line, delimiter)
-
-        // If we got exactly 3 parts, use them as-is
-        if (standardParts.size == 3) {
-            return standardParts
-        }
-
-        // If we got more than 3 parts, assume unquoted description with commas
-        // Format: date,description (with commas),amount
-        if (standardParts.size > 3) {
-            val date = standardParts[0]
-
-            if (standardParts.last().isBlank()) { // Sometimes there is a comma at the end of the line
-                standardParts = standardParts.subList(0, standardParts.size - 1)
-            }
-            val amount = standardParts.last()
-            // Join all middle parts as description
-            val description = standardParts.subList(1, standardParts.size - 1).joinToString(delimiter.toString())
-            return listOf(date, description, amount)
-        }
-
-        // Less than 3 parts, return as-is (will fail validation)
-        return standardParts
-    }
-
-    private fun parseDate(dateStr: String): LocalDate {
-        return try {
-            LocalDate.parse(dateStr, brazilianDateFormatter)
-        } catch (e: Exception) {
-            try {
-                LocalDate.parse(dateStr, isoDateFormatter)
-            } catch (e2: Exception) {
-                Log.w(TAG, "parseDate: unrecognized date format '$dateStr'")
-                throw IllegalArgumentException("Data inválida: $dateStr")
-            }
-        }
-    }
-
-    private fun parseAmount(amountStr: String): Long {
-
-        val value = try {
-            BigDecimal(amountStr.trim())
-        } catch (e: NumberFormatException) {
-            Log.w(TAG, "parseAmount: invalid amount string '$amountStr' (cleaned='$amountStr')")
-            throw IllegalArgumentException("Valor inválido: $amountStr")
-        }
-
-        val cents = value.multiply(BigDecimal(100)).longValueExact()
-
-        return cents
     }
 
     private fun parseInstallments(description: String): Pair<Int, Int> {

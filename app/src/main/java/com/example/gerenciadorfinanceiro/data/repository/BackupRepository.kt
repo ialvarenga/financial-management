@@ -80,25 +80,31 @@ class BackupRepository @Inject constructor(
                 }
             }
 
-            if (filter.transactions) {
-                data.transactions.forEach { transaction ->
-                    val remappedTransaction = transaction.copy(
-                        id = 0,
-                        accountId = accountIdMap[transaction.accountId]
-                            ?: throw IllegalStateException("Invalid accountId reference: ${transaction.accountId}")
-                    )
-                    transactionDao.insert(remappedTransaction)
-                }
-            }
-
+            // Recurrences are inserted before transactions/credit-card-items so their new
+            // autoincrement ids are known before remapping the recurrenceId FK on those rows.
+            val recurrenceIdMap = mutableMapOf<Long, Long>()
             if (filter.recurrences) {
                 data.recurrences.forEach { recurrence ->
+                    val oldId = recurrence.id
                     val remappedRecurrence = recurrence.copy(
                         id = 0,
                         accountId = recurrence.accountId?.let { accountIdMap[it] },
                         creditCardId = recurrence.creditCardId?.let { creditCardIdMap[it] }
                     )
-                    recurrenceDao.insert(remappedRecurrence)
+                    val newId = recurrenceDao.insert(remappedRecurrence)
+                    recurrenceIdMap[oldId] = newId
+                }
+            }
+
+            if (filter.transactions) {
+                data.transactions.forEach { transaction ->
+                    val remappedTransaction = transaction.copy(
+                        id = 0,
+                        accountId = accountIdMap[transaction.accountId]
+                            ?: throw IllegalStateException("Invalid accountId reference: ${transaction.accountId}"),
+                        recurrenceId = transaction.recurrenceId?.let { recurrenceIdMap[it] }
+                    )
+                    transactionDao.insert(remappedTransaction)
                 }
             }
 
@@ -134,7 +140,8 @@ class BackupRepository @Inject constructor(
                     val remappedItem = item.copy(
                         id = 0,
                         creditCardBillId = creditCardBillIdMap[item.creditCardBillId]
-                            ?: throw IllegalStateException("Invalid creditCardBillId reference: ${item.creditCardBillId}")
+                            ?: throw IllegalStateException("Invalid creditCardBillId reference: ${item.creditCardBillId}"),
+                        recurrenceId = item.recurrenceId?.let { recurrenceIdMap[it] }
                     )
                     creditCardItemDao.insert(remappedItem)
                 }

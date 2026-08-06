@@ -39,3 +39,12 @@ fun LocalDate.toEpochMilli(): Long {
         .toEpochMilli()
 }
 
+/**
+ * Resolves a configured day-of-month (1-31) against a specific month/year, clamping to the
+ * last valid day when the month is shorter (e.g. day 30 in February becomes the 28th/29th).
+ */
+fun resolveDayOfMonth(year: Int, month: Int, day: Int): LocalDate {
+    val lastDayOfMonth = LocalDate.of(year, month, 1).lengthOfMonth()
+    return LocalDate.of(year, month, day.coerceIn(1, lastDayOfMonth))
+}
+
