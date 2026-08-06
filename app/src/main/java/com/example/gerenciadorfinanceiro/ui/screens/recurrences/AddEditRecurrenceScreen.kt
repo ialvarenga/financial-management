@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.ui.components.CurrencyTextField
+import com.example.gerenciadorfinanceiro.ui.components.AppDatePickerDialog
 import com.example.gerenciadorfinanceiro.domain.model.Frequency
 import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
@@ -366,36 +367,12 @@ fun AddEditRecurrenceScreen(
             )
 
             if (showStartDatePicker) {
-                DatePickerDialog(
-                    onDismissRequest = { showStartDatePicker = false },
-                    confirmButton = {
-                        TextButton(onClick = { showStartDatePicker = false }) {
-                            Text("OK")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showStartDatePicker = false }) {
-                            Text("Cancelar")
-                        }
-                    }
-                ) {
-                    val datePickerState = rememberDatePickerState(
-                        initialSelectedDateMillis = uiState.startDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-                    )
-                    DatePicker(
-                        state = datePickerState,
-                        title = { Text("Selecione a data de início", modifier = Modifier.padding(16.dp)) }
-                    )
-
-                    LaunchedEffect(datePickerState.selectedDateMillis) {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val selectedDate = java.time.Instant.ofEpochMilli(millis)
-                                .atZone(java.time.ZoneId.systemDefault())
-                                .toLocalDate()
-                            viewModel.onStartDateChange(selectedDate)
-                        }
-                    }
-                }
+                AppDatePickerDialog(
+                    initialDate = uiState.startDate,
+                    onDateSelected = viewModel::onStartDateChange,
+                    onDismiss = { showStartDatePicker = false },
+                    title = "Selecione a data de início"
+                )
             }
 
             // Has end date checkbox
@@ -435,37 +412,12 @@ fun AddEditRecurrenceScreen(
                 )
 
                 if (showEndDatePicker) {
-                    DatePickerDialog(
-                        onDismissRequest = { showEndDatePicker = false },
-                        confirmButton = {
-                            TextButton(onClick = { showEndDatePicker = false }) {
-                                Text("OK")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showEndDatePicker = false }) {
-                                Text("Cancelar")
-                            }
-                        }
-                    ) {
-                        val datePickerState = rememberDatePickerState(
-                            initialSelectedDateMillis = (uiState.endDate ?: uiState.startDate)
-                                .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-                        )
-                        DatePicker(
-                            state = datePickerState,
-                            title = { Text("Selecione a data de término", modifier = Modifier.padding(16.dp)) }
-                        )
-
-                        LaunchedEffect(datePickerState.selectedDateMillis) {
-                            datePickerState.selectedDateMillis?.let { millis ->
-                                val selectedDate = java.time.Instant.ofEpochMilli(millis)
-                                    .atZone(java.time.ZoneId.systemDefault())
-                                    .toLocalDate()
-                                viewModel.onEndDateChange(selectedDate)
-                            }
-                        }
-                    }
+                    AppDatePickerDialog(
+                        initialDate = uiState.endDate ?: uiState.startDate,
+                        onDateSelected = viewModel::onEndDateChange,
+                        onDismiss = { showEndDatePicker = false },
+                        title = "Selecione a data de término"
+                    )
                 }
             }
 

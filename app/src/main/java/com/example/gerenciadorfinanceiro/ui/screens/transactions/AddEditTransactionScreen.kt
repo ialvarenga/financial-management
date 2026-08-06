@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.ui.components.CurrencyTextField
+import com.example.gerenciadorfinanceiro.ui.components.AppDatePickerDialog
 import com.example.gerenciadorfinanceiro.domain.model.PaymentMethod
 import com.example.gerenciadorfinanceiro.domain.model.TransactionStatus
 import com.example.gerenciadorfinanceiro.domain.model.TransactionType
@@ -257,36 +258,11 @@ fun AddEditTransactionScreen(
             )
 
             if (showDatePicker) {
-                DatePickerDialog(
-                    onDismissRequest = { showDatePicker = false },
-                    confirmButton = {
-                        TextButton(onClick = { showDatePicker = false }) {
-                            Text("OK")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showDatePicker = false }) {
-                            Text("Cancelar")
-                        }
-                    }
-                ) {
-                    val datePickerState = rememberDatePickerState(
-                        initialSelectedDateMillis = uiState.date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
-                    )
-                    DatePicker(
-                        state = datePickerState,
-                        title = { Text("Selecione a data", modifier = Modifier.padding(16.dp)) }
-                    )
-
-                    LaunchedEffect(datePickerState.selectedDateMillis) {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val selectedDate = java.time.Instant.ofEpochMilli(millis)
-                                .atZone(java.time.ZoneId.systemDefault())
-                                .toLocalDate()
-                            viewModel.onDateChange(selectedDate)
-                        }
-                    }
-                }
+                AppDatePickerDialog(
+                    initialDate = uiState.date,
+                    onDateSelected = viewModel::onDateChange,
+                    onDismiss = { showDatePicker = false }
+                )
             }
 
             // Notes
