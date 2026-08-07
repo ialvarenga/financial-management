@@ -880,6 +880,15 @@ private fun SuccessContent(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.error
             )
+
+            if (success.duplicatesSkipped > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "${success.duplicatesSkipped} itens duplicados ignorados",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(32.dp))

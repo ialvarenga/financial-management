@@ -17,7 +17,7 @@ import java.util.UUID
 import javax.inject.Inject
 
 sealed class ImportResult {
-    data class Success(val itemCount: Int, val totalAmount: Long) : ImportResult()
+    data class Success(val itemCount: Int, val totalAmount: Long, val duplicatesSkipped: Int = 0) : ImportResult()
     data class Error(val message: String) : ImportResult()
 }
 
@@ -75,6 +75,7 @@ class ImportCsvBillUseCase @Inject constructor(
         val affectedBillIds = mutableSetOf<Long>()
         var totalItemsCreated = 0
         var totalAmountImported = 0L
+        var duplicatesSkipped = 0
 
         // Get or create the bill for the specified month (the "current" bill being imported)
         val currentBill = getOrCreateBillUseCase(creditCardId, month, year)
@@ -84,6 +85,17 @@ class ImportCsvBillUseCase @Inject constructor(
         affectedBillIds.add(currentBill.id)
 
         for (csvItem in items) {
+            val purchaseDate = csvItem.date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+            // Re-importing the same file (or the same rows across overlapping files) would
+            // otherwise double every item and the bill total, since nothing else stops the
+            // same CSV row from being inserted twice into the same bill.
+            if (itemRepository.existsInBillByDescriptionAmountDate(currentBill.id, csvItem.description, csvItem.amount, purchaseDate)) {
+                android.util.Log.d("ImportCSV", "Skipping duplicate item: ${csvItem.description}")
+                duplicatesSkipped++
+                continue
+            }
+
             // Generate a unique group ID for installment purchases
             val installmentGroupId = if (csvItem.totalInstallments > 1) {
                 UUID.randomUUID().toString()
@@ -100,7 +112,7 @@ class ImportCsvBillUseCase @Inject constructor(
                 category = csvItem.category,
                 description = csvItem.description,
                 amount = csvItem.amount,
-                purchaseDate = csvItem.date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                purchaseDate = purchaseDate,
                 installmentNumber = csvItem.installmentNumber,
                 totalInstallments = csvItem.totalInstallments,
                 installmentGroupId = installmentGroupId
@@ -130,8 +142,6 @@ class ImportCsvBillUseCase @Inject constructor(
                             "Não é possível criar parcela $futureInstallmentNumber - fatura de ${futureDate.monthValue}/${futureDate.year} não está aberta"
                         )
                     }
-                    affectedBillIds.add(futureBill.id)
-                    android.util.Log.d("ImportCSV", "Created installment $futureInstallmentNumber in ${futureDate.monthValue}/${futureDate.year}")
 
                     // Update description to show correct installment number
                     val futureDescription = updateInstallmentDescription(
@@ -140,12 +150,21 @@ class ImportCsvBillUseCase @Inject constructor(
                         csvItem.totalInstallments
                     )
 
+                    if (itemRepository.existsInBillByDescriptionAmountDate(futureBill.id, futureDescription, csvItem.amount, purchaseDate)) {
+                        android.util.Log.d("ImportCSV", "Skipping duplicate future installment: $futureDescription")
+                        duplicatesSkipped++
+                        continue
+                    }
+
+                    affectedBillIds.add(futureBill.id)
+                    android.util.Log.d("ImportCSV", "Created installment $futureInstallmentNumber in ${futureDate.monthValue}/${futureDate.year}")
+
                     val futureItem = CreditCardItem(
                         creditCardBillId = futureBill.id,
                         category = csvItem.category,
                         description = futureDescription,
                         amount = csvItem.amount, // Same amount for each installment
-                        purchaseDate = csvItem.date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                        purchaseDate = purchaseDate,
                         installmentNumber = futureInstallmentNumber,
                         totalInstallments = csvItem.totalInstallments,
                         installmentGroupId = installmentGroupId
@@ -162,7 +181,7 @@ class ImportCsvBillUseCase @Inject constructor(
             billRepository.updateTotalAmount(billId, newTotal)
         }
 
-        ImportResult.Success(totalItemsCreated, totalAmountImported)
+        ImportResult.Success(totalItemsCreated, totalAmountImported, duplicatesSkipped)
     }
 
     /**

@@ -172,4 +172,28 @@ interface CreditCardItemDao {
         startDate: Long,
         endDate: Long
     ): Boolean
+
+    @Query("""
+        SELECT * FROM credit_card_items
+        WHERE recurrenceId = :recurrenceId
+        AND purchaseDate = :purchaseDate
+        LIMIT 1
+    """)
+    suspend fun getByRecurrenceIdAndPurchaseDate(recurrenceId: Long, purchaseDate: Long): CreditCardItem?
+
+    @Query("""
+        SELECT EXISTS(
+            SELECT 1 FROM credit_card_items
+            WHERE creditCardBillId = :billId
+            AND description = :description
+            AND amount = :amount
+            AND purchaseDate = :purchaseDate
+        )
+    """)
+    suspend fun existsInBillByDescriptionAmountDate(
+        billId: Long,
+        description: String,
+        amount: Long,
+        purchaseDate: Long
+    ): Boolean
 }

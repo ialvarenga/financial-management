@@ -9,7 +9,9 @@ import javax.inject.Inject
 
 class ItauNotificationParser @Inject constructor() : NotificationParser {
 
-    private val pixReceivedPattern = Regex("PIX recebido.*R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
+    // Lazy .*? so the amount capture stops at the first "R$ x" after "PIX recebido"
+    // instead of a greedy match skipping ahead to a trailing "Saldo R$ x".
+    private val pixReceivedPattern = Regex("PIX recebido.*?R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
     private val pixSentPattern = Regex(
         "pix enviado.*?R\\$\\s*([\\d.,]+)\\s+para\\s+(.+?),",
         RegexOption.IGNORE_CASE

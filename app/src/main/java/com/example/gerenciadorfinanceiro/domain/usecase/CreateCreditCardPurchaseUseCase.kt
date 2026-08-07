@@ -10,6 +10,7 @@ import com.example.gerenciadorfinanceiro.domain.model.BillStatus
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.model.NotificationSource
 import com.example.gerenciadorfinanceiro.domain.notification.ParsedNotification
+import com.example.gerenciadorfinanceiro.notification.CreditCardNotificationHelper
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -18,7 +19,8 @@ import javax.inject.Inject
 class CreateCreditCardPurchaseUseCase @Inject constructor(
     private val creditCardRepository: CreditCardRepository,
     private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
-    private val addCreditCardItemUseCase: AddCreditCardItemUseCase
+    private val addCreditCardItemUseCase: AddCreditCardItemUseCase,
+    private val creditCardNotificationHelper: CreditCardNotificationHelper
 ) {
     suspend operator fun invoke(parsed: ParsedNotification, notificationKey: String): ProcessedNotification {
         val creditCard = findOrCreateCreditCard(parsed)
@@ -77,10 +79,14 @@ class CreateCreditCardPurchaseUseCase @Inject constructor(
 
             if (parsed.source == NotificationSource.GOOGLE_WALLET) {
                 Log.i(TAG, "No credit card found with last 4 digits: ${parsed.lastFourDigits}, creating placeholder")
-                return creditCardRepository.createPlaceholderCard(
+                val placeholder = creditCardRepository.createPlaceholderCard(
                     lastFourDigits = parsed.lastFourDigits,
                     name = "Card ending in ${parsed.lastFourDigits}"
                 )
+                // A misread or unrecognized card number would otherwise leave a phantom
+                // card behind with no indication to the user it happened.
+                creditCardNotificationHelper.notifyPlaceholderCardCreated(parsed.lastFourDigits)
+                return placeholder
             }
 
             // Fallback: if the bank has exactly one active card, use it

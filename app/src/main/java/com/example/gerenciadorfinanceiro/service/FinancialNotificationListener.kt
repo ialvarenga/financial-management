@@ -76,6 +76,22 @@ class FinancialNotificationListener : NotificationListenerService() {
         }
     }
 
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        Log.i(TAG, "Notification listener connected")
+    }
+
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        Log.w(TAG, "Notification listener disconnected, requesting rebind")
+        // The system can drop the binder to this service (e.g. after an ANR or the
+        // system killing it for resources) without ever calling onDestroy(), which
+        // would otherwise leave notification capture silently dead until the next
+        // reboot or manual toggle. Requesting a rebind lets the service recover on
+        // its own.
+        requestRebind(android.content.ComponentName(this, FinancialNotificationListener::class.java))
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()

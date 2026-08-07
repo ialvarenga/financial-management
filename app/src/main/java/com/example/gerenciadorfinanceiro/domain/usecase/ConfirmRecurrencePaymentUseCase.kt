@@ -1,5 +1,7 @@
 package com.example.gerenciadorfinanceiro.domain.usecase
 
+import androidx.room.withTransaction
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.data.local.entity.Transaction
 import com.example.gerenciadorfinanceiro.data.repository.CreditCardItemRepository
@@ -13,7 +15,8 @@ class ConfirmRecurrencePaymentUseCase @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val creditCardItemRepository: CreditCardItemRepository,
     private val getOrCreateBillUseCase: GetOrCreateBillUseCase,
-    private val completeTransactionUseCase: CompleteTransactionUseCase
+    private val completeTransactionUseCase: CompleteTransactionUseCase,
+    private val database: AppDatabase
 ) {
     /**
      * Confirms a projected recurrence by creating a real transaction or credit card item
@@ -26,13 +29,28 @@ class ConfirmRecurrencePaymentUseCase @Inject constructor(
         projectedRecurrence: ProjectedRecurrence,
         markAsCompleted: Boolean = false,
         selectedAccountId: Long? = null
-    ): Long {
+    ): Long = database.withTransaction {
         val recurrence = projectedRecurrence.recurrence
 
         // Use the recurrence's account or the selected account
         val accountId = recurrence.accountId ?: selectedAccountId
 
-        return if (accountId != null) {
+        if (accountId != null) {
+            // The check-then-insert runs inside the same DB transaction so a rapid
+            // double-tap (two calls racing before either has inserted) serializes
+            // behind this one instead of both creating a transaction for the same
+            // occurrence.
+            val existing = transactionRepository.getByRecurrenceIdAndDate(
+                recurrence.id,
+                projectedRecurrence.projectedDate
+            )
+            if (existing != null) {
+                if (markAsCompleted && existing.status != TransactionStatus.COMPLETED) {
+                    completeTransactionUseCase(existing.id)
+                }
+                return@withTransaction existing.id
+            }
+
             // Create account-based transaction (always as PENDING first)
             val transaction = Transaction(
                 description = recurrence.description,
@@ -56,6 +74,14 @@ class ConfirmRecurrencePaymentUseCase @Inject constructor(
 
             transactionId
         } else if (recurrence.creditCardId != null) {
+            val existingItem = creditCardItemRepository.getByRecurrenceIdAndPurchaseDate(
+                recurrence.id,
+                projectedRecurrence.projectedDate
+            )
+            if (existingItem != null) {
+                return@withTransaction existingItem.id
+            }
+
             // Create credit card item
             val projectedDate = java.time.Instant.ofEpochMilli(projectedRecurrence.projectedDate)
                 .atZone(java.time.ZoneId.systemDefault())

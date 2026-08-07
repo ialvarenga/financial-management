@@ -99,6 +99,9 @@ class TransactionRepository @Inject constructor(
     ): Flow<List<Transaction>> =
         transactionDao.getByRecurrenceIdAndDateRange(recurrenceId, startDate, endDate)
 
+    suspend fun getByRecurrenceIdAndDate(recurrenceId: Long, date: Long): Transaction? =
+        transactionDao.getByRecurrenceIdAndDate(recurrenceId, date)
+
     fun getRecurrenceIdsWithTransactionsInDateRange(
         startDate: Long,
         endDate: Long

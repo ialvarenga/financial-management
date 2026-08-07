@@ -9,6 +9,7 @@ import com.example.gerenciadorfinanceiro.data.backup.BackupData
 import com.example.gerenciadorfinanceiro.data.backup.BackupStorage
 import com.example.gerenciadorfinanceiro.data.repository.BackupRepository
 import com.example.gerenciadorfinanceiro.data.repository.SettingsRepository
+import com.example.gerenciadorfinanceiro.notification.BackupNotificationHelper
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
@@ -25,7 +26,8 @@ class AutoBackupWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val backupRepository: BackupRepository,
     private val backupStorage: BackupStorage,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val backupNotificationHelper: BackupNotificationHelper
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -51,6 +53,9 @@ class AutoBackupWorker @AssistedInject constructor(
             if (runAttemptCount < MAX_RETRY_ATTEMPTS) {
                 Result.retry()
             } else {
+                // Retries are exhausted, so this failure would otherwise sit silently in
+                // Logcat until the day the user actually needs a backup that isn't there.
+                backupNotificationHelper.notifyBackupFailed(e.message)
                 Result.failure()
             }
         }

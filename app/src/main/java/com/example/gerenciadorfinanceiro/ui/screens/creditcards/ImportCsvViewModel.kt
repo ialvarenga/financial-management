@@ -45,7 +45,8 @@ data class ImportCsvUiState(
 
 data class ImportSuccessInfo(
     val itemCount: Int,
-    val totalAmount: Long
+    val totalAmount: Long,
+    val duplicatesSkipped: Int = 0
 )
 
 enum class ImportStep {
@@ -235,10 +236,10 @@ class ImportCsvViewModel @Inject constructor(
             
             when (result) {
                 is ImportResult.Success -> {
-                    _uiState.update { 
+                    _uiState.update {
                         it.copy(
                             isImporting = false,
-                            importSuccess = ImportSuccessInfo(result.itemCount, result.totalAmount),
+                            importSuccess = ImportSuccessInfo(result.itemCount, result.totalAmount, result.duplicatesSkipped),
                             step = ImportStep.SUCCESS
                         )
                     }

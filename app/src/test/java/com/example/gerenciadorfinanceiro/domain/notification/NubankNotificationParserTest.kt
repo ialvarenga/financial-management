@@ -149,6 +149,18 @@ class NubankNotificationParserTest {
     }
 
     @Test
+    fun `parse transfer received ignores trailing Saldo amount`() {
+        val title = "Transferência recebida"
+        val text = "Você recebeu R$ 200,00 de Pedro Costa. Saldo R$ 9.999,00"
+        val timestamp = System.currentTimeMillis()
+
+        val result = parser.parse(title, text, timestamp)
+
+        assertNotNull(result)
+        assertEquals(20000L, result!!.amount) // must capture 200.00, not the trailing 9999.00 balance
+    }
+
+    @Test
     fun `parse transfer sent`() {
         val title = "Transferência enviada"
         val text = "Você enviou R$ 150,00 para Ana Silva"

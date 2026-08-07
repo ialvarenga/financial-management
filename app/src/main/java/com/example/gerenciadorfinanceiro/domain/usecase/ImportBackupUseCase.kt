@@ -6,6 +6,7 @@ import com.example.gerenciadorfinanceiro.data.backup.BackupFileService
 import com.example.gerenciadorfinanceiro.data.backup.FinancialData
 import com.example.gerenciadorfinanceiro.data.backup.ImportEntityFilter
 import com.example.gerenciadorfinanceiro.data.backup.ImportResult
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.repository.BackupRepository
 import javax.inject.Inject
 
@@ -50,6 +51,18 @@ class ImportBackupUseCase @Inject constructor(
 
             if (backupData.version != 1) {
                 return ImportResult.Error("Versão do backup não compatível (versão ${backupData.version})")
+            }
+
+            // schemaVersion is 0 for backups made before the field existed - those predate
+            // any breaking schema change we'd need to guard against, so they're allowed
+            // through. A schemaVersion newer than this app's DB means the backup carries
+            // fields/entities this version doesn't know how to restore correctly.
+            if (backupData.schemaVersion > AppDatabase.DATABASE_VERSION) {
+                return ImportResult.Error(
+                    "Este backup foi criado por uma versão mais recente do app " +
+                        "(schema ${backupData.schemaVersion}, atual ${AppDatabase.DATABASE_VERSION}). " +
+                        "Atualize o app antes de restaurar."
+                )
             }
 
             executeWithData(backupData.data, filter)

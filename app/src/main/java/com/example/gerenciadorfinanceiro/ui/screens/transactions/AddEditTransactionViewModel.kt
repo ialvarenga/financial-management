@@ -18,11 +18,12 @@ import com.example.gerenciadorfinanceiro.domain.usecase.UpdateTransactionUseCase
 import com.example.gerenciadorfinanceiro.ui.components.normalizeCurrencyDigits
 import com.example.gerenciadorfinanceiro.util.digitsToCents
 import com.example.gerenciadorfinanceiro.util.toDigitsString
+import com.example.gerenciadorfinanceiro.util.toEpochMilli
+import com.example.gerenciadorfinanceiro.util.toLocalDate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.ZoneId
 import javax.inject.Inject
 
 data class AddEditTransactionUiState(
@@ -107,7 +108,7 @@ class AddEditTransactionViewModel @Inject constructor(
                         selectedAccount = transactionWithAccount.account,
                         paymentMethod = transaction.paymentMethod,
                         status = transaction.status,
-                        date = LocalDate.ofEpochDay(transaction.date / (24 * 60 * 60 * 1000)),
+                        date = transaction.date.toLocalDate(),
                         notes = transaction.notes ?: "",
                         selectedRecurrence = associatedRecurrence,
                         isEditing = true,
@@ -193,10 +194,7 @@ class AddEditTransactionViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            val dateMillis = currentState.date
-                .atStartOfDay(ZoneId.systemDefault())
-                .toInstant()
-                .toEpochMilli()
+            val dateMillis = currentState.date.toEpochMilli()
 
             val transaction = Transaction(
                 id = if (currentState.isEditing) transactionId else 0,

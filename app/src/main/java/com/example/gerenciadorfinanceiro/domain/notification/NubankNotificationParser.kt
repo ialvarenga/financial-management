@@ -9,8 +9,10 @@ import javax.inject.Inject
 
 class NubankNotificationParser @Inject constructor() : NotificationParser {
 
-    private val transferReceivedPattern = Regex("Transferência recebida.*R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
-    private val transferSentPattern = Regex("Transferência enviada.*R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
+    // Lazy .*? so the amount capture stops at the first "R$ x" after the trigger phrase
+    // instead of a greedy match skipping ahead to a trailing "Saldo R$ x".
+    private val transferReceivedPattern = Regex("Transferência recebida.*?R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
+    private val transferSentPattern = Regex("Transferência enviada.*?R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
     private val pixReimbursementPattern = Regex("Você recebeu um reembolso de R\\$\\s*([\\d.,]+)\\s*de\\s*(.+?)\\.", RegexOption.IGNORE_CASE)
     private val creditCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s*para o cartão com final\\s*(\\d{4})", RegexOption.IGNORE_CASE)
     private val debitCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s+.*?débito", RegexOption.IGNORE_CASE)

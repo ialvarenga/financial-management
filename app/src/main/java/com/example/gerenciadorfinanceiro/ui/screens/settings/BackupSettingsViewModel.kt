@@ -13,6 +13,7 @@ import com.example.gerenciadorfinanceiro.data.backup.FinancialData
 import com.example.gerenciadorfinanceiro.data.backup.ImportEntity
 import com.example.gerenciadorfinanceiro.data.backup.ImportEntityFilter
 import com.example.gerenciadorfinanceiro.data.backup.ImportResult
+import com.example.gerenciadorfinanceiro.data.local.database.AppDatabase
 import com.example.gerenciadorfinanceiro.data.repository.BackupRepository
 import com.example.gerenciadorfinanceiro.data.repository.SettingsRepository
 import com.example.gerenciadorfinanceiro.domain.usecase.ExportBackupUseCase
@@ -142,6 +143,21 @@ class BackupSettingsViewModel @Inject constructor(
                             it.copy(
                                 isLoadingBackup = false,
                                 errorMessage = "Versão do backup não compatível (versão ${backupData.version})"
+                            )
+                        }
+                        return@launch
+                    }
+                    // schemaVersion is 0 for backups made before the field existed, which
+                    // predates any breaking schema change - those are still safe to restore.
+                    // A schemaVersion newer than this app's DB means the backup carries
+                    // fields/entities this version doesn't know how to restore correctly.
+                    if (backupData.schemaVersion > AppDatabase.DATABASE_VERSION) {
+                        _uiState.update {
+                            it.copy(
+                                isLoadingBackup = false,
+                                errorMessage = "Este backup foi criado por uma versão mais recente do app " +
+                                    "(schema ${backupData.schemaVersion}, atual ${AppDatabase.DATABASE_VERSION}). " +
+                                    "Atualize o app antes de restaurar."
                             )
                         }
                         return@launch

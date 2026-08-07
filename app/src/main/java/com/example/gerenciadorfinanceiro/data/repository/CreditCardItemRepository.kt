@@ -92,4 +92,14 @@ class CreditCardItemRepository @Inject constructor(
         startDate: Long,
         endDate: Long
     ): Boolean = itemDao.existsByAmountDescriptionAndDateRange(amount, description, startDate, endDate)
+
+    suspend fun getByRecurrenceIdAndPurchaseDate(recurrenceId: Long, purchaseDate: Long): CreditCardItem? =
+        itemDao.getByRecurrenceIdAndPurchaseDate(recurrenceId, purchaseDate)
+
+    suspend fun existsInBillByDescriptionAmountDate(
+        billId: Long,
+        description: String,
+        amount: Long,
+        purchaseDate: Long
+    ): Boolean = itemDao.existsInBillByDescriptionAmountDate(billId, description, amount, purchaseDate)
 }

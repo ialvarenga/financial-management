@@ -3,11 +3,13 @@ package com.example.gerenciadorfinanceiro.data.csv
 import android.util.Log
 import com.example.gerenciadorfinanceiro.domain.model.Category
 import com.example.gerenciadorfinanceiro.domain.model.CsvBillItem
-import java.io.BufferedReader
 import java.io.InputStream
-import java.io.InputStreamReader
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.nio.ByteBuffer
+import java.nio.charset.Charset
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.CodingErrorAction
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
@@ -29,6 +31,9 @@ class CsvBillParser @Inject constructor() {
 
     companion object {
         private const val TAG = "CsvBillParser"
+
+        // Generous upper bound for a credit card installment plan (5 years of monthly bills).
+        private const val MAX_INSTALLMENTS = 60
     }
 
     /**
@@ -40,10 +45,14 @@ class CsvBillParser @Inject constructor() {
      */
     fun parse(inputStream: InputStream, config: CsvImportConfig = CsvImportConfig()): CsvParseResult {
         return try {
-            val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
-            val lines = reader.readLines()
-            reader.close()
+            val bytes = inputStream.use { it.readBytes() }
 
+            if (bytes.isEmpty()) {
+                Log.w(TAG, "parse: file is empty")
+                return CsvParseResult.Error("Arquivo CSV vazio")
+            }
+
+            val lines = decodeToLines(bytes)
             Log.d(TAG, "parse: read ${lines.size} lines")
 
             if (lines.isEmpty()) {
@@ -55,6 +64,43 @@ class CsvBillParser @Inject constructor() {
         } catch (e: Exception) {
             Log.e(TAG, "parse: failed to read file", e)
             CsvParseResult.Error("Erro ao ler arquivo: ${e.message}")
+        }
+    }
+
+    /**
+     * Decodes raw file bytes into lines, honoring a UTF-8/UTF-16 BOM when present.
+     * Falls back to Windows-1252 (a superset of ISO-8859-1 covering the accented
+     * characters used by pt-BR bank exports) when the bytes aren't valid UTF-8.
+     */
+    private fun decodeToLines(bytes: ByteArray): List<String> {
+        val text = decodeText(bytes)
+        val lines = text.lines()
+        return if (lines.isNotEmpty() && lines.last().isEmpty()) lines.dropLast(1) else lines
+    }
+
+    private fun decodeText(bytes: ByteArray): String {
+        val bomUtf8 = bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()
+        if (bomUtf8) {
+            return String(bytes, 3, bytes.size - 3, Charsets.UTF_8)
+        }
+        val bomUtf16Le = bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte()
+        if (bomUtf16Le) {
+            return String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
+        }
+        val bomUtf16Be = bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte()
+        if (bomUtf16Be) {
+            return String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
+        }
+
+        return try {
+            Charsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(bytes))
+                .toString()
+        } catch (e: CharacterCodingException) {
+            Log.w(TAG, "parse: content is not valid UTF-8, falling back to Windows-1252")
+            String(bytes, Charset.forName("windows-1252"))
         }
     }
 
@@ -177,7 +223,10 @@ class CsvBillParser @Inject constructor() {
             pattern.find(description)?.let { match ->
                 val current = match.groupValues[1].toIntOrNull() ?: 1
                 val total = match.groupValues[2].toIntOrNull() ?: 1
-                if (total > 1 && current <= total) {
+                // Real installment plans don't run past a few years of monthly bills.
+                // Without this cap, unrelated numeric pairs in the description (e.g.
+                // "Protocolo 45/9876") get misread as installment 45 of 9876.
+                if (total in 2..MAX_INSTALLMENTS && current in 1..total) {
                     return current to total
                 }
             }

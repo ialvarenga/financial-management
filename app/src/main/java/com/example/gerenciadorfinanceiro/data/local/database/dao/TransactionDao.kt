@@ -167,6 +167,14 @@ interface TransactionDao {
     ): Flow<List<Transaction>>
 
     @Query("""
+        SELECT * FROM transactions
+        WHERE recurrenceId = :recurrenceId
+        AND date = :date
+        LIMIT 1
+    """)
+    suspend fun getByRecurrenceIdAndDate(recurrenceId: Long, date: Long): Transaction?
+
+    @Query("""
         SELECT DISTINCT recurrenceId FROM transactions
         WHERE recurrenceId IS NOT NULL
         AND date BETWEEN :startDate AND :endDate

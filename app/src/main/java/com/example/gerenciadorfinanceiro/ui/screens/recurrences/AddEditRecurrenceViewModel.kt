@@ -16,6 +16,8 @@ import com.example.gerenciadorfinanceiro.domain.model.TransactionType
 import com.example.gerenciadorfinanceiro.ui.components.normalizeCurrencyDigits
 import com.example.gerenciadorfinanceiro.util.digitsToCents
 import com.example.gerenciadorfinanceiro.util.toDigitsString
+import com.example.gerenciadorfinanceiro.util.toEpochMilli
+import com.example.gerenciadorfinanceiro.util.toLocalDate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,7 +25,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.ZoneId
 import javax.inject.Inject
 
 data class AddEditRecurrenceUiState(
@@ -116,8 +117,8 @@ class AddEditRecurrenceViewModel @Inject constructor(
                         dayOfWeek = recurrence.dayOfWeek ?: 1,
                         selectedAccount = account,
                         selectedCreditCard = creditCard,
-                        startDate = LocalDate.ofEpochDay(recurrence.startDate / (24 * 60 * 60 * 1000)),
-                        endDate = recurrence.endDate?.let { LocalDate.ofEpochDay(it / (24 * 60 * 60 * 1000)) },
+                        startDate = recurrence.startDate.toLocalDate(),
+                        endDate = recurrence.endDate?.toLocalDate(),
                         hasEndDate = recurrence.endDate != null,
                         notes = recurrence.notes ?: "",
                         isEditing = true,
@@ -233,8 +234,8 @@ class AddEditRecurrenceViewModel @Inject constructor(
                 dayOfWeek = if (currentState.frequency == Frequency.WEEKLY) currentState.dayOfWeek else null,
                 accountId = if (currentState.paymentMethod.requiresAccount()) currentState.selectedAccount?.id else null,
                 creditCardId = if (currentState.paymentMethod == PaymentMethod.CREDIT_CARD) currentState.selectedCreditCard?.id else null,
-                startDate = currentState.startDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
-                endDate = currentState.endDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli(),
+                startDate = currentState.startDate.toEpochMilli(),
+                endDate = currentState.endDate?.toEpochMilli(),
                 notes = currentState.notes.takeIf { it.isNotBlank() }
             )
 

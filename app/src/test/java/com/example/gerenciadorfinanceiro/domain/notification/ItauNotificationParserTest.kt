@@ -47,6 +47,18 @@ class ItauNotificationParserTest {
     }
 
     @Test
+    fun `parse PIX received notification ignores trailing Saldo amount`() {
+        val title = "PIX recebido"
+        val text = "Você recebeu R$ 150,00 de João Silva. Saldo R$ 9.999,00"
+        val timestamp = System.currentTimeMillis()
+
+        val result = parser.parse(title, text, timestamp)
+
+        assertNotNull(result)
+        assertEquals(15000L, result!!.amount) // must capture 150.00, not the trailing 9999.00 balance
+    }
+
+    @Test
     fun `parse PIX sent notification`() {
         val title = "PIX enviado"
         val text = "pix enviado de R$ 50,75 para Maria Santos, enviado com sucesso"
