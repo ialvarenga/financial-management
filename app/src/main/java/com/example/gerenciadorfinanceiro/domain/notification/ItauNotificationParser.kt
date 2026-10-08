@@ -11,13 +11,16 @@ class ItauNotificationParser @Inject constructor() : NotificationParser {
 
     // Lazy .*? so the amount capture stops at the first "R$ x" after "PIX recebido"
     // instead of a greedy match skipping ahead to a trailing "Saldo R$ x".
-    private val pixReceivedPattern = Regex("PIX recebido.*?R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
+    private val pixReceivedPattern = Regex(
+        "(?:PIX recebido|recebeu um PIX).*?R\\$\\s*([\\d.,]+)",
+        RegexOption.IGNORE_CASE
+    )
     private val pixSentPattern = Regex(
-        "pix enviado.*?R\\$\\s*([\\d.,]+)\\s+para\\s+(.+?),",
+        "(?:pix enviado|enviou um PIX).*?R\\$\\s*([\\d.,]+)(?:\\s+(?:para|a)\\s+(.+?))?(?:[,.]|$)",
         RegexOption.IGNORE_CASE
     )
     private val creditCardPurchasePattern = Regex(
-        "Compra aprovada de R\\$\\s*([\\d.,]+)\\s+em\\s+(.+?)\\s+no dia",
+        "(?:Compra\\s+aprovada\\s+de|Compra\\s+de)\\s+R\\$\\s*([\\d.,]+)\\s+(?:em|aprovada\\s+em)\\s+(.+?)(?:\\s+no dia|[,.]|$)",
         RegexOption.IGNORE_CASE
     )
 

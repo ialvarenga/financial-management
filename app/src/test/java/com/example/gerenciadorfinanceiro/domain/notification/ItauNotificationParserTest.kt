@@ -97,6 +97,19 @@ class ItauNotificationParserTest {
     }
 
     @Test
+    fun `parse credit card notification with alternate wording`() {
+        val result = parser.parse(
+            title = "Compra aprovada",
+            text = "Compra de R$ 89,90 aprovada em Supermercado Extra.",
+            timestamp = System.currentTimeMillis()
+        )
+
+        assertNotNull(result)
+        assertEquals(8990L, result!!.amount)
+        assertEquals("Supermercado Extra", result.description)
+    }
+
+    @Test
     fun `parse returns null for unrecognized notification`() {
         val title = "Saldo disponível"
         val text = "Seu saldo atual é de R$ 1.000,00"

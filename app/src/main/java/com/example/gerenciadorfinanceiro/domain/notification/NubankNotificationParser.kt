@@ -14,11 +14,20 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
     private val transferReceivedPattern = Regex("Transferência recebida.*?R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
     private val transferSentPattern = Regex("Transferência enviada.*?R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
     private val pixReimbursementPattern = Regex("Você recebeu um reembolso de R\\$\\s*([\\d.,]+)\\s*de\\s*(.+?)\\.", RegexOption.IGNORE_CASE)
-    private val creditCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s*para o cartão com final\\s*(\\d{4})", RegexOption.IGNORE_CASE)
-    private val debitCardPurchasePattern = Regex("Compra de R\\$\\s*([\\d.,]+)\\s+APROVADA em\\s+(.+?)\\s+.*?débito", RegexOption.IGNORE_CASE)
+    private val creditCardPurchasePattern = Regex(
+        "Compra(?:\\s+de)?\\s+R\\$\\s*([\\d.,]+)\\s+APROVADA\\s+em\\s+(.+?)\\s+(?:para o )?cartão\\s+(?:com )?final\\s*(\\d{4})",
+        RegexOption.IGNORE_CASE
+    )
+    private val debitCardPurchasePattern = Regex(
+        "Compra(?:\\s+de)?\\s+R\\$\\s*([\\d.,]+)\\s+APROVADA\\s+em\\s+(.+?)\\s+.*?débito",
+        RegexOption.IGNORE_CASE
+    )
     private val billPaymentPattern = Regex("fatura.*paga", RegexOption.IGNORE_CASE)
     private val nupayTitlePattern = Regex("Compra aprovada com Nupay de R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
-    private val nupayTextPattern = Regex("Compra em (\\d+)x no (Crédito|Débito).*APROVADA em\\s+(.+?)$", RegexOption.IGNORE_CASE)
+    private val nupayTextPattern = Regex(
+        "Compra em (\\d+)x no (Crédito|Débito).*?APROVADA em\\s+(.+?)(?:[.!]|$)",
+        RegexOption.IGNORE_CASE
+    )
 
     override fun canParse(source: NotificationSource): Boolean {
         return source == NotificationSource.NUBANK
@@ -74,24 +83,6 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
             }
         }
 
-        val creditCardMatch = creditCardPurchasePattern.find(text)
-        if (creditCardMatch != null) {
-            Log.d(TAG, "Matched credit card purchase pattern: ${creditCardMatch.value}")
-            val amountStr = "R$ ${creditCardMatch.groupValues[1]}"
-            val place = creditCardMatch.groupValues[2].trim()
-            val lastFourDigits = creditCardMatch.groupValues[3]
-            val amount = amountStr.toCents() ?: return null
-            return ParsedNotification(
-                source = NotificationSource.NUBANK,
-                amount = amount,
-                description = place,
-                timestamp = timestamp,
-                transactionType = null,  // Credit card purchase, not a direct transaction
-                lastFourDigits = lastFourDigits,
-                paymentMethod = PaymentMethod.CREDIT_CARD
-            )
-        }
-
         val debitCardMatch = debitCardPurchasePattern.find(text)
         if (debitCardMatch != null) {
             Log.d(TAG, "Matched debit card purchase pattern: ${debitCardMatch.value}")
@@ -106,6 +97,24 @@ class NubankNotificationParser @Inject constructor() : NotificationParser {
                 transactionType = TransactionType.EXPENSE,
                 lastFourDigits = null,
                 paymentMethod = PaymentMethod.DEBIT
+            )
+        }
+
+        val creditCardMatch = creditCardPurchasePattern.find(combined)
+        if (creditCardMatch != null) {
+            Log.d(TAG, "Matched credit card purchase pattern: ${creditCardMatch.value}")
+            val amountStr = "R$ ${creditCardMatch.groupValues[1]}"
+            val place = creditCardMatch.groupValues[2].trim()
+            val lastFourDigits = creditCardMatch.groupValues[3]
+            val amount = amountStr.toCents() ?: return null
+            return ParsedNotification(
+                source = NotificationSource.NUBANK,
+                amount = amount,
+                description = place,
+                timestamp = timestamp,
+                transactionType = null,  // Credit card purchase, not a direct transaction
+                lastFourDigits = lastFourDigits,
+                paymentMethod = PaymentMethod.CREDIT_CARD
             )
         }
 

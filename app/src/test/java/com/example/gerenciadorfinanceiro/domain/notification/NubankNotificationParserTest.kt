@@ -98,6 +98,20 @@ class NubankNotificationParserTest {
     }
 
     @Test
+    fun `parse credit card purchase with alternate card suffix wording`() {
+        val result = parser.parse(
+            title = "Compra aprovada",
+            text = "Compra de R$ 125,00 APROVADA em Netflix cartão final 1234",
+            timestamp = System.currentTimeMillis()
+        )
+
+        assertNotNull(result)
+        assertEquals(12500L, result!!.amount)
+        assertEquals("Netflix", result.description)
+        assertEquals("1234", result.lastFourDigits)
+    }
+
+    @Test
     fun `parse debit card purchase`() {
         val title = "Compra aprovada"
         val text = "Compra de R$ 78,90 APROVADA em Uber débito"

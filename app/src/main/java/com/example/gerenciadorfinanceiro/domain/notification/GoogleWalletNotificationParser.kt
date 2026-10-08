@@ -8,8 +8,9 @@ import javax.inject.Inject
 
 class GoogleWalletNotificationParser @Inject constructor() : NotificationParser {
 
-    private val purchasePattern = Regex(
-        "R\\$\\s*([\\d.,]+).*?(\\d{4})$",
+    private val amountPattern = Regex("R\\$\\s*([\\d.,]+)", RegexOption.IGNORE_CASE)
+    private val cardEndingPattern = Regex(
+        "(?:termina(?:\\s+em)?|final(?:\\s+do)?|••••|\\*{4})\\s*(\\d{4})",
         RegexOption.IGNORE_CASE
     )
 
@@ -20,17 +21,18 @@ class GoogleWalletNotificationParser @Inject constructor() : NotificationParser 
     override fun parse(title: String, text: String, timestamp: Long): ParsedNotification? {
         Log.d(TAG, "Parsing Google Wallet notification - Title: $title, Text: $text")
 
-        val match = purchasePattern.find(text)
-        if (match == null) {
+        val amountMatch = amountPattern.find(text)
+        val cardEndingMatch = cardEndingPattern.find(text)
+        if (amountMatch == null || cardEndingMatch == null) {
             Log.d(TAG, "No pattern matched for Google Wallet notification")
             return null
         }
 
-        Log.d(TAG, "Matched purchase pattern: ${match.value}")
+        Log.d(TAG, "Matched purchase pattern")
 
-        val amountStr = "R$ ${match.groupValues[1]}"
+        val amountStr = "R$ ${amountMatch.groupValues[1]}"
         val amount = amountStr.toCents() ?: return null
-        val lastFour = match.groupValues[2]
+        val lastFour = cardEndingMatch.groupValues[1]
 
         // Use title as description (contains the place name)
         val description = title.ifBlank { "Compra Google Wallet" }

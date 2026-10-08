@@ -74,6 +74,19 @@ class GoogleWalletNotificationParserTest {
     }
 
     @Test
+    fun `parse accepts card suffix when additional text follows`() {
+        val result = parser.parse(
+            title = "Mercado",
+            text = "R$ 42,00 no cartão final 1234. Toque para ver os detalhes",
+            timestamp = System.currentTimeMillis()
+        )
+
+        assertNotNull(result)
+        assertEquals(4200L, result!!.amount)
+        assertEquals("1234", result.lastFourDigits)
+    }
+
+    @Test
     fun `parse uses default description when title is blank`() {
         val title = ""
         val text = "R$ 100,00 em seu cartão que termina em 4321"
