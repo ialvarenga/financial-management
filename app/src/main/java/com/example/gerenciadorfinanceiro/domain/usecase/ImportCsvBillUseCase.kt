@@ -53,7 +53,7 @@ class ImportCsvBillUseCase @Inject constructor(
             }
             is CsvParseResult.Success -> {
                 if (parseResult.items.isEmpty()) {
-                    return ImportResult.Error("Nenhum item encontrado no arquivo CSV")
+                    return ImportResult.Error("Nenhum item encontrado no arquivo")
                 }
 
                 try {

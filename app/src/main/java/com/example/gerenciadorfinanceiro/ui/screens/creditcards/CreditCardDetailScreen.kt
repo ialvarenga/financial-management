@@ -102,7 +102,7 @@ fun CreditCardDetailScreen(
                     },
                     actions = {
                         IconButton(onClick = onNavigateToImportCsv) {
-                            Icon(Icons.Default.FileUpload, contentDescription = "Importar CSV")
+                            Icon(Icons.Default.FileUpload, contentDescription = "Importar fatura")
                         }
                         IconButton(onClick = onNavigateToEdit) {
                             Icon(Icons.Default.Edit, contentDescription = "Editar")

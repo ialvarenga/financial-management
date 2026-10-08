@@ -14,12 +14,14 @@ import com.example.gerenciadorfinanceiro.domain.model.CsvBillItem
 import com.example.gerenciadorfinanceiro.domain.usecase.ImportCsvBillUseCase
 import com.example.gerenciadorfinanceiro.domain.usecase.ImportResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.time.LocalDate
 import javax.inject.Inject
@@ -41,7 +43,11 @@ data class ImportCsvUiState(
     val errorMessage: String? = null,
     val importSuccess: ImportSuccessInfo? = null,
     val step: ImportStep = ImportStep.SELECT_FILE
-)
+) {
+    // The delimiter setting doesn't apply to Excel files
+    val isSpreadsheet: Boolean
+        get() = fileName?.endsWith(".xlsx", ignoreCase = true) == true
+}
 
 data class ImportSuccessInfo(
     val itemCount: Int,
@@ -146,7 +152,9 @@ class ImportCsvViewModel @Inject constructor(
             
             val state = _uiState.value
             val config = state.customConfig
-            val result = importCsvBillUseCase.parsePreview(inputStream, config)
+            val result = withContext(Dispatchers.IO) {
+                importCsvBillUseCase.parsePreview(inputStream, config)
+            }
 
             when (result) {
                 is CsvParseResult.Success -> {

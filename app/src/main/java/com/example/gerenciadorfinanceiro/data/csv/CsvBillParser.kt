@@ -34,12 +34,23 @@ class CsvBillParser @Inject constructor() {
 
         // Generous upper bound for a credit card installment plan (5 years of monthly bills).
         private const val MAX_INSTALLMENTS = 60
+
+        // .xlsx files are ZIP archives; legacy .xls files are OLE2 compound documents.
+        private val ZIP_MAGIC = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
+        private val OLE2_MAGIC = byteArrayOf(0xD0.toByte(), 0xCF.toByte(), 0x11, 0xE0.toByte())
+
+        // Day zero of Excel's date serial numbers. The 1900 system starts at 1899-12-30
+        // (not 12-31) because Excel counts a nonexistent 1900-02-29.
+        private val EXCEL_EPOCH_1900 = LocalDate.of(1899, 12, 30)
+        private val EXCEL_EPOCH_1904 = LocalDate.of(1904, 1, 1)
     }
 
     /**
-     * Parse a CSV file from an InputStream using the user-configured column/delimiter/format.
+     * Parse a CSV or .xlsx file from an InputStream using the user-configured columns/formats.
+     * The file type is detected from its content. For .xlsx, the first sheet is read and the
+     * delimiter is ignored; date and decimal formats only apply to cells stored as text.
      * Tolerant: bad lines are collected as SkippedLine instead of aborting the import.
-     * @param inputStream The input stream of the CSV file
+     * @param inputStream The input stream of the CSV or .xlsx file
      * @param config Column indices, delimiter, date pattern and decimal style
      * @return CsvParseResult containing parsed items or an error
      */
@@ -49,18 +60,34 @@ class CsvBillParser @Inject constructor() {
 
             if (bytes.isEmpty()) {
                 Log.w(TAG, "parse: file is empty")
-                return CsvParseResult.Error("Arquivo CSV vazio")
+                return CsvParseResult.Error("Arquivo vazio")
             }
 
-            val lines = decodeToLines(bytes)
-            Log.d(TAG, "parse: read ${lines.size} lines")
+            when {
+                bytes.startsWith(ZIP_MAGIC) -> {
+                    val sheet = XlsxReader.read(bytes)
+                    Log.d(TAG, "parse: read ${sheet.rows.size} spreadsheet rows")
+                    parseRows(sheet.rows, config, if (sheet.date1904) EXCEL_EPOCH_1904 else EXCEL_EPOCH_1900)
+                }
+                bytes.startsWith(OLE2_MAGIC) -> {
+                    Log.w(TAG, "parse: legacy .xls file")
+                    CsvParseResult.Error("Arquivos .xls não são suportados. Salve a planilha como .xlsx ou CSV")
+                }
+                else -> {
+                    val lines = decodeToLines(bytes)
+                    Log.d(TAG, "parse: read ${lines.size} lines")
 
-            if (lines.isEmpty()) {
-                Log.w(TAG, "parse: file is empty")
-                return CsvParseResult.Error("Arquivo CSV vazio")
+                    if (lines.isEmpty()) {
+                        Log.w(TAG, "parse: file is empty")
+                        return CsvParseResult.Error("Arquivo vazio")
+                    }
+
+                    val rows = lines.mapIndexed { index, line ->
+                        SheetRow(index + 1, parseCsvLine(line, config.delimiter.char).map { SheetCell.Text(it) }, line)
+                    }
+                    parseRows(rows, config, EXCEL_EPOCH_1900)
+                }
             }
-
-            parseCustom(lines, config)
         } catch (e: Exception) {
             Log.e(TAG, "parse: failed to read file", e)
             CsvParseResult.Error("Erro ao ler arquivo: ${e.message}")
@@ -104,9 +131,12 @@ class CsvBillParser @Inject constructor() {
         }
     }
 
-    // Custom format: user-defined columns, delimiter, date/decimal format and skip rows.
+    private fun ByteArray.startsWith(prefix: ByteArray): Boolean =
+        size >= prefix.size && prefix.indices.all { this[it] == prefix[it] }
+
+    // Custom format: user-defined columns, date/decimal format and skip rows.
     // Tolerant: bad lines are collected as SkippedLine instead of aborting the import.
-    private fun parseCustom(lines: List<String>, config: CsvImportConfig): CsvParseResult {
+    private fun parseRows(rows: List<SheetRow>, config: CsvImportConfig, excelEpoch: LocalDate): CsvParseResult {
         val dateFormatter = try {
             DateTimeFormatter.ofPattern(config.datePattern)
         } catch (e: IllegalArgumentException) {
@@ -116,23 +146,31 @@ class CsvBillParser @Inject constructor() {
         val items = mutableListOf<CsvBillItem>()
         val skipped = mutableListOf<SkippedLine>()
         val maxColumn = maxOf(config.dateColumn, config.descriptionColumn, config.amountColumn)
-        val dataLines = lines.drop(config.skipRows)
-        Log.d(TAG, "parseCustom: ${dataLines.size} data lines, config=$config")
+        // Filtering by row number (instead of dropping N rows) matches the row numbers the user
+        // sees in a spreadsheet, where empty rows aren't stored in the file.
+        val dataRows = rows.filter { it.rowNumber > config.skipRows }
+        Log.d(TAG, "parseRows: ${dataRows.size} data rows, config=$config")
 
-        for ((index, line) in dataLines.withIndex()) {
-            if (line.isBlank()) continue
-            val lineNumber = index + config.skipRows + 1
+        for (row in dataRows) {
+            val line = row.content
+            val lineNumber = row.rowNumber
+            if (row.cells.all { it == null || (it is SheetCell.Text && it.value.isBlank()) }) continue
 
             try {
-                val parts = parseCsvLine(line, config.delimiter.char)
-                if (parts.size < maxColumn) {
-                    skipped.add(SkippedLine(lineNumber, line, "Colunas insuficientes (${parts.size})"))
+                if (row.cells.size < maxColumn) {
+                    skipped.add(SkippedLine(lineNumber, line, "Colunas insuficientes (${row.cells.size})"))
                     continue
                 }
 
-                val date = LocalDate.parse(parts[config.dateColumn - 1].trim(), dateFormatter)
-                val description = parts[config.descriptionColumn - 1].trim()
-                val amount = parseAmountCustom(parts[config.amountColumn - 1], config.decimalStyle)
+                val date = parseDate(row.cellAt(config.dateColumn), dateFormatter, excelEpoch)
+                val description = when (val cell = row.cellAt(config.descriptionColumn)) {
+                    is SheetCell.Text -> cell.value.trim()
+                    is SheetCell.Number -> cell.value.toPlainString()
+                }
+                val amount = when (val cell = row.cellAt(config.amountColumn)) {
+                    is SheetCell.Text -> parseAmountCustom(cell.value, config.decimalStyle)
+                    is SheetCell.Number -> cell.value.toCents()
+                }
 
                 if (amount < 0 && config.negativeHandling == NegativeHandling.SKIP) {
                     skipped.add(SkippedLine(lineNumber, line, "Valor negativo ignorado"))
@@ -153,22 +191,35 @@ class CsvBillParser @Inject constructor() {
             } catch (e: DateTimeParseException) {
                 skipped.add(SkippedLine(lineNumber, line, "Data inválida"))
             } catch (e: Exception) {
-                Log.w(TAG, "parseCustom: error on line $lineNumber: $line", e)
+                Log.w(TAG, "parseRows: error on line $lineNumber: $line", e)
                 skipped.add(SkippedLine(lineNumber, line, e.message ?: "Erro ao interpretar linha"))
             }
         }
 
-        Log.d(TAG, "parseCustom: parsed ${items.size} items, skipped ${skipped.size} lines")
+        Log.d(TAG, "parseRows: parsed ${items.size} items, skipped ${skipped.size} lines")
 
         if (items.isEmpty()) {
             val firstReason = skipped.firstOrNull()?.reason ?: "arquivo vazio"
             return CsvParseResult.Error(
-                "Nenhuma linha pôde ser interpretada. Verifique as colunas e o delimitador. Primeiro erro: $firstReason"
+                "Nenhuma linha pôde ser interpretada. Verifique as colunas e os formatos. Primeiro erro: $firstReason"
             )
         }
 
         return CsvParseResult.Success(items, skipped)
     }
+
+    /** 1-based column; a missing cell reads as empty text so it fails like an empty CSV field. */
+    private fun SheetRow.cellAt(column: Int): SheetCell = cells[column - 1] ?: SheetCell.Text("")
+
+    private fun parseDate(cell: SheetCell, formatter: DateTimeFormatter, excelEpoch: LocalDate): LocalDate =
+        when (cell) {
+            is SheetCell.Text -> LocalDate.parse(cell.value.trim(), formatter)
+            // Excel date serial: days since the epoch, with the time of day as the fraction
+            is SheetCell.Number -> excelEpoch.plusDays(cell.value.setScale(0, RoundingMode.FLOOR).toLong())
+        }
+
+    private fun BigDecimal.toCents(): Long =
+        setScale(2, RoundingMode.HALF_UP).multiply(BigDecimal(100)).longValueExact()
 
     private fun parseAmountCustom(raw: String, style: DecimalStyle): Long {
         val cleaned = raw
@@ -187,7 +238,7 @@ class CsvBillParser @Inject constructor() {
             throw IllegalArgumentException("Valor inválido: $raw")
         }
 
-        return value.setScale(2, RoundingMode.HALF_UP).multiply(BigDecimal(100)).longValueExact()
+        return value.toCents()
     }
 
     private fun parseCsvLine(line: String, delimiter: Char): List<String> {

@@ -61,7 +61,7 @@ fun ImportCsvScreen(
                 title = {
                     Text(
                         text = when (uiState.step) {
-                            ImportStep.SELECT_FILE -> "Importar CSV"
+                            ImportStep.SELECT_FILE -> "Importar fatura"
                             ImportStep.PREVIEW -> "Pré-visualização"
                             ImportStep.SUCCESS -> "Importação Concluída"
                         }
@@ -90,7 +90,14 @@ fun ImportCsvScreen(
                     SelectFileContent(
                         uiState = uiState,
                         onSelectFile = {
-                            filePickerLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*"))
+                            filePickerLauncher.launch(
+                                arrayOf(
+                                    "text/csv",
+                                    "text/comma-separated-values",
+                                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    "*/*"
+                                )
+                            )
                         },
                         onConfigChange = viewModel::updateCustomConfig,
                         onPreviousMonth = viewModel::selectPreviousMonth,
@@ -231,26 +238,10 @@ private fun SelectFileContent(
             }
         }
 
-        // CSV Format Configuration
+        // File Selection (before the format, which depends on the file type)
         item {
             Text(
-                text = "Formato do CSV",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        item {
-            CustomConfigCard(
-                config = uiState.customConfig,
-                onChange = onConfigChange
-            )
-        }
-
-        // File Selection
-        item {
-            Text(
-                text = "Arquivo CSV",
+                text = "Arquivo",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -279,7 +270,7 @@ private fun SelectFileContent(
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = uiState.fileName ?: "Selecionar arquivo CSV",
+                            text = uiState.fileName ?: "Selecionar arquivo CSV ou Excel (.xlsx)",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (uiState.fileUri != null) FontWeight.Medium else FontWeight.Normal,
                             maxLines = 1,
@@ -302,6 +293,23 @@ private fun SelectFileContent(
                     }
                 }
             }
+        }
+
+        // Format Configuration
+        item {
+            Text(
+                text = "Formato do arquivo",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        item {
+            CustomConfigCard(
+                config = uiState.customConfig,
+                isSpreadsheet = uiState.isSpreadsheet,
+                onChange = onConfigChange
+            )
         }
 
         // Parse Button
@@ -352,10 +360,11 @@ private fun SelectFileContent(
                         )
                     }
                     Text(
-                        text = "• Exporte a fatura do seu banco em formato CSV\n" +
+                        text = "• Exporte a fatura do seu banco em formato CSV ou Excel (.xlsx)\n" +
                                "• O arquivo deve conter: data, descrição e valor\n" +
-                               "• Ajuste as colunas, delimitador e formatos abaixo para " +
+                               "• Ajuste as colunas e formatos acima para " +
                                "combinar com o arquivo exportado\n" +
+                               "• No Excel, apenas a primeira aba é importada\n" +
                                "• A configuração usada fica salva para a próxima importação",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -369,6 +378,7 @@ private fun SelectFileContent(
 @Composable
 private fun CustomConfigCard(
     config: CsvImportConfig,
+    isSpreadsheet: Boolean,
     onChange: (CsvImportConfig) -> Unit
 ) {
     Card(
@@ -429,12 +439,14 @@ private fun CustomConfigCard(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            ConfigDropdown(
-                label = "Delimitador",
-                selectedText = config.delimiter.displayName,
-                options = CsvDelimiter.entries.map { it.displayName },
-                onSelected = { index -> onChange(config.copy(delimiter = CsvDelimiter.entries[index])) }
-            )
+            if (!isSpreadsheet) {
+                ConfigDropdown(
+                    label = "Delimitador",
+                    selectedText = config.delimiter.displayName,
+                    options = CsvDelimiter.entries.map { it.displayName },
+                    onSelected = { index -> onChange(config.copy(delimiter = CsvDelimiter.entries[index])) }
+                )
+            }
 
             ConfigDropdown(
                 label = "Formato da data",
@@ -449,6 +461,15 @@ private fun CustomConfigCard(
                 options = DecimalStyle.entries.map { it.displayName },
                 onSelected = { index -> onChange(config.copy(decimalStyle = DecimalStyle.entries[index])) }
             )
+
+            if (isSpreadsheet) {
+                Text(
+                    text = "No Excel, os formatos de data e decimal só são usados quando a célula contém texto. " +
+                           "Datas e valores numéricos são lidos diretamente.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
