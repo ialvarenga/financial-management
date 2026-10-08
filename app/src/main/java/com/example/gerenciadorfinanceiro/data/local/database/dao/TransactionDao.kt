@@ -206,6 +206,13 @@ interface TransactionDao {
     ): Flow<List<RecurrenceDate>>
 
     @Query("""
+        SELECT * FROM transactions
+        WHERE recurrenceId IS NOT NULL
+        AND date >= :startDate
+    """)
+    fun getRecurrenceLinkedSince(startDate: Long): Flow<List<Transaction>>
+
+    @Query("""
         SELECT EXISTS(
             SELECT 1 FROM transactions
             WHERE amount = :amount

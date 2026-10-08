@@ -5,6 +5,7 @@ import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardCateg
 import com.example.gerenciadorfinanceiro.data.local.database.dao.CreditCardItemDao
 import com.example.gerenciadorfinanceiro.data.local.entity.CreditCardItem
 import com.example.gerenciadorfinanceiro.domain.model.Category
+import com.example.gerenciadorfinanceiro.domain.model.RecurrenceDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -82,6 +83,9 @@ class CreditCardItemRepository @Inject constructor(
                 dates.groupBy { it.recurrenceId }
                     .mapValues { (_, list) -> list.map { it.date }.toSet() }
             }
+
+    fun getRecurrenceDatesSince(startDate: Long): Flow<List<RecurrenceDate>> =
+        itemDao.getRecurrenceDatesSince(startDate)
 
     suspend fun updateCategoryByInstallmentGroup(groupId: String, category: Category) =
         itemDao.updateCategoryByInstallmentGroup(groupId, category)

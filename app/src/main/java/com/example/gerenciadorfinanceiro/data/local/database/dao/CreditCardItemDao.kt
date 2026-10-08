@@ -155,6 +155,14 @@ interface CreditCardItemDao {
     """)
     fun getItemDatesByRecurrenceInMonth(month: Int, year: Int): Flow<List<RecurrenceDate>>
 
+    @Query("""
+        SELECT recurrenceId, purchaseDate as date
+        FROM credit_card_items
+        WHERE recurrenceId IS NOT NULL
+        AND purchaseDate >= :startDate
+    """)
+    fun getRecurrenceDatesSince(startDate: Long): Flow<List<RecurrenceDate>>
+
     @Query("UPDATE credit_card_items SET category = :category WHERE installmentGroupId = :groupId")
     suspend fun updateCategoryByInstallmentGroup(groupId: String, category: Category)
 

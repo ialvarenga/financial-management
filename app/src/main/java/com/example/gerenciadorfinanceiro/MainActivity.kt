@@ -23,17 +23,25 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Only on a fresh start, so a rotation doesn't navigate again
+        val openScreen = if (savedInstanceState == null) intent.getStringExtra(EXTRA_OPEN_SCREEN) else null
         setContent {
             FinancialAppTheme {
-                MainScreen()
+                MainScreen(openScreen = openScreen)
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_SCREEN = "open_screen"
+        const val SCREEN_TRANSACTIONS = "transactions"
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
+    openScreen: String? = null,
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
@@ -96,6 +104,15 @@ fun MainScreen(
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
             AppNavigation(navController = navController)
+        }
+
+        // Placed after AppNavigation so the nav graph is already set when this runs
+        LaunchedEffect(openScreen) {
+            if (openScreen == MainActivity.SCREEN_TRANSACTIONS) {
+                navController.navigate(Screen.Transactions.route) {
+                    popUpTo(Screen.Dashboard.route)
+                }
+            }
         }
     }
 }

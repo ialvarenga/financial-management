@@ -83,6 +83,19 @@ class BackupSettingsViewModel @Inject constructor(
         initialValue = AutoBackupUiState()
     )
 
+    val recurrenceRemindersEnabled: StateFlow<Boolean> = settingsRepository.isRecurrenceRemindersEnabled()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
+        )
+
+    fun setRecurrenceRemindersEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setRecurrenceRemindersEnabled(enabled)
+        }
+    }
+
     fun setAutoBackupEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAutoBackupEnabled(enabled)

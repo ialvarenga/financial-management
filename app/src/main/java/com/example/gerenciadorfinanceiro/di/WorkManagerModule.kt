@@ -9,6 +9,7 @@ import androidx.work.WorkManager
 import com.example.gerenciadorfinanceiro.worker.AutoBackupWorker
 import com.example.gerenciadorfinanceiro.worker.BillClosureWorker
 import com.example.gerenciadorfinanceiro.worker.BudgetMorningWorker
+import com.example.gerenciadorfinanceiro.worker.RecurrenceReminderWorker
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -99,6 +100,38 @@ object WorkManagerModule {
         Log.i(
             "WorkManagerModule",
             "Budget morning work scheduled. Will run daily at 08:00. Initial delay: $initialDelayMinutes minutes"
+        )
+    }
+
+    /**
+     * Schedules the daily recurrence reminders around 08:00.
+     * This should be called once during app initialization.
+     */
+    fun scheduleRecurrenceReminderWork(workManager: WorkManager) {
+        // Calculate initial delay to the next 08:00
+        val now = java.time.ZonedDateTime.now()
+        val todayAtEight = now.toLocalDate().atTime(8, 0).atZone(now.zone)
+        val nextRun = if (now.isBefore(todayAtEight)) todayAtEight else todayAtEight.plusDays(1)
+        val initialDelayMinutes = Duration.between(now, nextRun).toMinutes()
+
+        // No flex window and no constraints, same reasoning as the budget morning work
+        val recurrenceReminderWork = PeriodicWorkRequestBuilder<RecurrenceReminderWorker>(
+            repeatInterval = 24,
+            repeatIntervalTimeUnit = TimeUnit.HOURS
+        )
+            .setInitialDelay(initialDelayMinutes, TimeUnit.MINUTES)
+            .addTag(RecurrenceReminderWorker.TAG)
+            .build()
+
+        workManager.enqueueUniquePeriodicWork(
+            RecurrenceReminderWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.UPDATE,
+            recurrenceReminderWork
+        )
+
+        Log.i(
+            "WorkManagerModule",
+            "Recurrence reminder work scheduled. Will run daily at 08:00. Initial delay: $initialDelayMinutes minutes"
         )
     }
 

@@ -10,6 +10,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.gerenciadorfinanceiro.di.WorkManagerModule
 import com.example.gerenciadorfinanceiro.notification.BudgetAlertMonitor
+import com.example.gerenciadorfinanceiro.notification.RecurrenceReminderMonitor
 import com.example.gerenciadorfinanceiro.service.FinancialNotificationListener
 import com.example.gerenciadorfinanceiro.util.isNotificationAccessGranted
 import com.example.gerenciadorfinanceiro.worker.BillClosureWorker
@@ -27,6 +28,9 @@ class FinancialApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var budgetAlertMonitor: BudgetAlertMonitor
+
+    @Inject
+    lateinit var recurrenceReminderMonitor: RecurrenceReminderMonitor
 
     override fun onCreate() {
         super.onCreate()
@@ -47,8 +51,14 @@ class FinancialApp : Application(), Configuration.Provider {
         // Schedule daily automatic backup
         WorkManagerModule.scheduleAutoBackupWork(workManager)
 
+        // Schedule the morning recurrence reminders
+        WorkManagerModule.scheduleRecurrenceReminderWork(workManager)
+
         // Watch credit card spend and fire budget threshold alerts
         budgetAlertMonitor.start()
+
+        // Keep the due recurrence reminders in sync with payments and skips
+        recurrenceReminderMonitor.start()
 
         // The notification listener binding can silently drop (e.g. after the OS reclaims
         // memory) and Android does not reconnect it on its own, so force a rebind on every

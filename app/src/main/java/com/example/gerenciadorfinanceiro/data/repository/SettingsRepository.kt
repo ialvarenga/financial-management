@@ -185,6 +185,51 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    private val RECURRENCE_REMINDERS_ENABLED = booleanPreferencesKey("recurrence_reminders_enabled")
+    private val RECURRENCE_REMINDERS_SINCE = stringPreferencesKey("recurrence_reminders_since")
+    private val RECURRENCE_LAST_ALERT_DATE = stringPreferencesKey("recurrence_last_alert_date")
+
+    fun isRecurrenceRemindersEnabled(): Flow<Boolean> =
+        dataStore.data.map { preferences ->
+            preferences[RECURRENCE_REMINDERS_ENABLED] ?: true
+        }
+
+    suspend fun setRecurrenceRemindersEnabled(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[RECURRENCE_REMINDERS_ENABLED] = enabled
+        }
+    }
+
+    /**
+     * ISO local date ("2026-10-01") before which unresolved recurrence occurrences never
+     * alert, or null until the reminders run for the first time.
+     */
+    fun getRecurrenceRemindersSince(): Flow<String?> =
+        dataStore.data.map { preferences ->
+            preferences[RECURRENCE_REMINDERS_SINCE]
+        }
+
+    /** Stores the reminders anchor only if none is set yet, so it never moves forward. */
+    suspend fun initRecurrenceRemindersSince(date: String) {
+        dataStore.edit { preferences ->
+            if (preferences[RECURRENCE_REMINDERS_SINCE] == null) {
+                preferences[RECURRENCE_REMINDERS_SINCE] = date
+            }
+        }
+    }
+
+    /** ISO local date of the last audible morning reminder, or "" if never posted. */
+    fun getRecurrenceLastAlertDate(): Flow<String> =
+        dataStore.data.map { preferences ->
+            preferences[RECURRENCE_LAST_ALERT_DATE] ?: ""
+        }
+
+    suspend fun setRecurrenceLastAlertDate(date: String) {
+        dataStore.edit { preferences ->
+            preferences[RECURRENCE_LAST_ALERT_DATE] = date
+        }
+    }
+
     fun getLastSeenVersion(): Flow<String> =
         dataStore.data.map { preferences ->
             preferences[LAST_SEEN_VERSION] ?: ""

@@ -37,6 +37,10 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".notification.RecurrenceActionReceiver"
+            android:exported="false" />
+
         <service
             android:name=".service.FinancialNotificationListener"
             android:exported="true"

@@ -125,6 +125,9 @@ class TransactionRepository @Inject constructor(
                     .mapValues { (_, list) -> list.map { it.date }.toSet() }
             }
 
+    fun getRecurrenceLinkedSince(startDate: Long): Flow<List<Transaction>> =
+        transactionDao.getRecurrenceLinkedSince(startDate)
+
     suspend fun existsByAmountDescriptionAndDateRange(
         amount: Long,
         description: String,
