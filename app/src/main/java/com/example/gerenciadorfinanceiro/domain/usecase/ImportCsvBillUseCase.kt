@@ -86,12 +86,19 @@ class ImportCsvBillUseCase @Inject constructor(
 
         for (csvItem in items) {
             val purchaseDate = csvItem.date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val (duplicateStartDate, duplicateEndDate) = duplicateDateRange(csvItem.date)
 
-            // Re-importing the same file (or the same rows across overlapping files) would
-            // otherwise double every item and the bill total, since nothing else stops the
-            // same CSV row from being inserted twice into the same bill.
-            if (itemRepository.existsInBillByDescriptionAmountDate(currentBill.id, csvItem.description, csvItem.amount, purchaseDate)) {
-                android.util.Log.d("ImportCSV", "Skipping duplicate item: ${csvItem.description}")
+            // Descriptions are often renamed manually and notifications may be delivered the
+            // following day. Within the same bill, the amount plus a one-day date tolerance is
+            // a more dependable import identity than the original merchant text.
+            if (itemRepository.existsInBillByAmountAndDateRange(
+                    currentBill.id,
+                    csvItem.amount,
+                    duplicateStartDate,
+                    duplicateEndDate
+                )
+            ) {
+                android.util.Log.d("ImportCSV", "Skipping matching item: ${csvItem.description}")
                 duplicatesSkipped++
                 continue
             }
@@ -150,8 +157,14 @@ class ImportCsvBillUseCase @Inject constructor(
                         csvItem.totalInstallments
                     )
 
-                    if (itemRepository.existsInBillByDescriptionAmountDate(futureBill.id, futureDescription, csvItem.amount, purchaseDate)) {
-                        android.util.Log.d("ImportCSV", "Skipping duplicate future installment: $futureDescription")
+                    if (itemRepository.existsInBillByAmountAndDateRange(
+                            futureBill.id,
+                            csvItem.amount,
+                            duplicateStartDate,
+                            duplicateEndDate
+                        )
+                    ) {
+                        android.util.Log.d("ImportCSV", "Skipping matching future installment: $futureDescription")
                         duplicatesSkipped++
                         continue
                     }
@@ -182,6 +195,14 @@ class ImportCsvBillUseCase @Inject constructor(
         }
 
         ImportResult.Success(totalItemsCreated, totalAmountImported, duplicatesSkipped)
+    }
+
+    private fun duplicateDateRange(date: LocalDate): Pair<Long, Long> {
+        val zone = ZoneId.systemDefault()
+        val start = date.minusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        // The end is exclusive so a notification at any time on the following day matches.
+        val end = date.plusDays(2).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+        return start to end
     }
 
     /**
@@ -248,4 +269,3 @@ class ImportCsvBillUseCase @Inject constructor(
         }
     }
 }
-

@@ -185,15 +185,14 @@ interface CreditCardItemDao {
         SELECT EXISTS(
             SELECT 1 FROM credit_card_items
             WHERE creditCardBillId = :billId
-            AND description = :description
             AND amount = :amount
-            AND purchaseDate = :purchaseDate
+            AND purchaseDate BETWEEN :startDate AND :endDate
         )
     """)
-    suspend fun existsInBillByDescriptionAmountDate(
+    suspend fun existsInBillByAmountAndDateRange(
         billId: Long,
-        description: String,
         amount: Long,
-        purchaseDate: Long
+        startDate: Long,
+        endDate: Long
     ): Boolean
 }
